@@ -1,0 +1,67 @@
+Analyzing and compiling avl_tree.c to avl_tree.o
+avl_tree.c:143:31: warning: Access to field 'key' results in a dereference of a null pointer (loaded from field 'right') [core.NullDereference]
+    if (balance < -1 && key > (node->right->key))
+                              ^~~~~~~~~~~~~~~~~~
+1 warning generated.
+Compilation and analysis of avl_tree.c succeeded
+Analyzing and compiling bfs.c to bfs.o
+bfs.c:74:5: warning: Potential leak of memory pointed to by 'graph' [unix.Malloc]
+    return 0;
+    ^~~~~~~~
+bfs.c:106:1: warning: Potential leak of memory pointed to by 'q' [unix.Malloc]
+}
+^
+2 warnings generated.
+Compilation and analysis of bfs.c succeeded
+Analyzing and compiling binary_search_tree.c to binary_search_tree.o
+Compilation and analysis of binary_search_tree.c succeeded
+Analyzing and compiling bubble_sort.c to bubble_sort.o
+Compilation and analysis of bubble_sort.c succeeded
+Analyzing and compiling dfs.c to dfs.o
+Compilation and analysis of dfs.c succeeded
+Analyzing and compiling doubly_linkedlist.c to doubly_linkedlist.o
+Compilation and analysis of doubly_linkedlist.c succeeded
+Analyzing and compiling graph.c to graph.o
+Compilation and analysis of graph.c succeeded
+Analyzing and compiling hash_map.c to hash_map.o
+hash_map.c:629:15: warning: Value stored to 'h3' is never read [deadcode.DeadStores]
+    h2 += h1; h3 += h1; h4 += h1;
+              ^     ~~
+hash_map.c:629:25: warning: Value stored to 'h4' is never read [deadcode.DeadStores]
+    h2 += h1; h3 += h1; h4 += h1;
+                        ^     ~~
+2 warnings generated.
+Compilation and analysis of hash_map.c succeeded
+Analyzing and compiling hash_set.c to hash_set.o
+Compilation and analysis of hash_set.c succeeded
+Analyzing and compiling hash_table.c to hash_table.o
+Compilation and analysis of hash_table.c succeeded
+Analyzing and compiling merge_sort.c to merge_sort.o
+Compilation and analysis of merge_sort.c succeeded
+Analyzing and compiling queue.c to queue.o
+queue.c:66:20: warning: Access to field 'next' results in a dereference of a null pointer (loaded from variable 'head') [core.NullDereference]
+        head->next = NULL;
+        ~~~~       ^
+1 warning generated.
+Compilation and analysis of queue.c succeeded
+Analyzing and compiling red_black_tree.c to red_black_tree.o
+red_black_tree.c:25:1: warning: Potential leak of memory pointed to by 'create' [unix.Malloc]
+}
+^
+red_black_tree.c:614:20: warning: Access to field 'val' results in a dereference of a null pointer (loaded from variable 'buffRoot') [core.NullDereference]
+        if (val == buffRoot->val)
+                   ^~~~~~~~~~~~~
+red_black_tree.c:728:9: warning: Use of memory after it is freed [unix.Malloc]
+        printInorder(root->right);
+        ^~~~~~~~~~~~~~~~~~~~~~~~~
+3 warnings generated.
+Compilation and analysis of red_black_tree.c succeeded
+Analyzing and compiling singly_linkedlist.c to singly_linkedlist.o
+Compilation and analysis of singly_linkedlist.c succeeded
+Analyzing and compiling stack.c to stack.o
+stack.c:55:20: warning: Assigned value is garbage or undefined [core.uninitialized.Assign]
+        *(tmp + i) = *(array + i);
+                   ^ ~~~~~~~~~~~~
+1 warning generated.
+Compilation and analysis of stack.c succeeded
+Compilation and static analysis completed.
