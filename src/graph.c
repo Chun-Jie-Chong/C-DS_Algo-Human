@@ -2,7 +2,7 @@
 
 // Graph ADT
 // Adjacency Matrix Representation
-#include "Graph.h"
+#include "graph.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
