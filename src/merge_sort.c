@@ -85,7 +85,7 @@ void merge(int *a, int l, int r, int n)
  * @param l index to sort from
  * @param r index to sort till
  */
-void merge_sort(int *a, int n, int l, int r)
+void mergeSort(int *a, int n, int l, int r)
 {
     if (r - l == 1)
     {
@@ -94,8 +94,8 @@ void merge_sort(int *a, int n, int l, int r)
     }
     else if (l != r)
     {
-        merge_sort(a, n, l, (l + r) / 2);
-        merge_sort(a, n, ((l + r) / 2) + 1, r);
+        mergeSort(a, n, l, (l + r) / 2);
+        mergeSort(a, n, ((l + r) / 2) + 1, r);
         merge(a, l, r, n);
     }
 
@@ -104,37 +104,37 @@ void merge_sort(int *a, int n, int l, int r)
 /** @} */
 
 /** Main function */
-int main(void)
-{
-    int *a, n, i;
-    printf("Enter Array size: ");
-    scanf("%d", &n);
-    if (n <= 0) /* exit program if arraysize is not greater than 0 */
-    {
-        printf("Array size must be Greater than 0!\n");
-        return 1;
-    }
-    a = (int *)malloc(n * sizeof(int));
-    if (a == NULL) /* exit program if can't malloc memory */
-    {
-        printf("Can't Malloc! Please try again.");
-        return 1;
-    }
-    for (i = 0; i < n; i++)
-    {
-        printf("Enter number[%d]: ", i);
-        scanf("%d", &a[i]);
-    }
+// int main(void)
+// {
+//     int *a, n, i;
+//     printf("Enter Array size: ");
+//     scanf("%d", &n);
+//     if (n <= 0) /* exit program if arraysize is not greater than 0 */
+//     {
+//         printf("Array size must be Greater than 0!\n");
+//         return 1;
+//     }
+//     a = (int *)malloc(n * sizeof(int));
+//     if (a == NULL) /* exit program if can't malloc memory */
+//     {
+//         printf("Can't Malloc! Please try again.");
+//         return 1;
+//     }
+//     for (i = 0; i < n; i++)
+//     {
+//         printf("Enter number[%d]: ", i);
+//         scanf("%d", &a[i]);
+//     }
 
-    merge_sort(a, n, 0, n - 1);
-    printf("Sorted Array: ");
-    for (i = 0; i < n; i++)
-    {
-        printf("%d ", a[i]);
-    }
-    printf("\n");
+//     merge_sort(a, n, 0, n - 1);
+//     printf("Sorted Array: ");
+//     for (i = 0; i < n; i++)
+//     {
+//         printf("%d ", a[i]);
+//     }
+//     printf("\n");
 
-    free(a);
+//     free(a);
 
-    return 0;
-}
+//     return 0;
+// }

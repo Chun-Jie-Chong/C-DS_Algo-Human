@@ -71,10 +71,10 @@ void test()
 }
 
 /** Driver Code */
-int main()
-{
-    /* Intializes random number generator */
-    srand(time(NULL));
-    test();
-    return 0;
-}
+// int main()
+// {
+//     /* Intializes random number generator */
+//     srand(time(NULL));
+//     test();
+//     return 0;
+// }
