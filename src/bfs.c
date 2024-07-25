@@ -1,197 +1,188 @@
-//The Algorithms
+// The Algorithms
 
+#include <stdbool.h>
 #include <stdio.h>
+#include "graph.c"
+#include <assert.h>
 #include <stdlib.h>
-#define SIZE 40
-// Assume max size of graph is 40 nodes
-struct queue
-{
-    int items[SIZE];
-    int front;
-    int rear;
-};
 
-// Some declarations
-struct queue *createQueue();
-void enqueue(struct queue *q, int);
-int dequeue(struct queue *q);
-void display(struct queue *q);
-int isEmpty(struct queue *q);
-int pollQueue(struct queue *q);
+typedef struct QueueRep *queue;
 
-// Structure to create a graph node
-struct node
+queue newQueue();               // set up empty queue
+void dropQueue(queue);          // remove unwanted queue
+int QueueIsEmpty(queue);        // check whether queue is empty
+void QueueEnqueue(queue, int);  // insert an int at end of queue
+int QueueDequeue(queue);        // remove int from front of queue
+
+
+// Queue ADT implementation ... COMP2521
+typedef struct node
 {
-    int vertex;
+    int data;
     struct node *next;
-};
+} NodeT;
 
-struct node *createNode(int);
-
-// Graph data structure
-struct Graph
+typedef struct QueueRep
 {
-    int numVertices;
-    struct node **adjLists;
-    int *visited;
-};
-struct Graph *createGraph(int vertices);
-void addEdge(struct Graph *graph, int src, int dest);
-void printGraph(struct Graph *graph);
-void bfs(struct Graph *graph, int startVertex);
+    int length;
+    NodeT *head;
+    NodeT *tail;
+} QueueRep;
 
-int main()
+#define MAX_NODES 1000
+
+int visited[MAX_NODES];  // array to store visiting order
+                         // indexed by vertex 0..nV-1
+
+// set up empty queue
+queue newQueue()
 {
-    int vertices, edges, source, i, src, dst;
-    printf("Enter the number of vertices\n");
-    scanf("%d", &vertices);
-    struct Graph *graph = createGraph(vertices);
-    printf("Enter the number of edges\n");
-    scanf("%d", &edges);
-    for (i = 0; i < edges; i++)
-    {
-        printf("Edge %d \nEnter source: ", i + 1);
-        scanf("%d", &src);
-        printf("Enter destination: ");
-        scanf("%d", &dst);
-        addEdge(graph, src, dst);
-    }
-    printf("Enter source of bfs\n");
-    scanf("%d", &source);
-    bfs(graph, source);
-
-    // Uncomment below part to get a ready-made example
-    /*struct Graph* graph = createGraph(6);
-    addEdge(graph, 0, 1);
-    addEdge(graph, 0, 2);
-    addEdge(graph, 1, 2);
-    addEdge(graph, 1, 4);
-    addEdge(graph, 1, 3);
-    addEdge(graph, 2, 4);
-    addEdge(graph, 3, 4);
-    bfs(graph,0);*/
-
-    return 0;
+    queue Q = malloc(sizeof(QueueRep));
+    Q->length = 0;
+    Q->head = NULL;
+    Q->tail = NULL;
+    return Q;
 }
-void bfs(struct Graph *graph, int startVertex)
+
+// remove unwanted queue
+void dropQueue(queue Q)
 {
-    struct queue *q = createQueue();
-
-    // Add to visited list and put in queue
-    graph->visited[startVertex] = 1;
-    enqueue(q, startVertex);
-    printf("Breadth first traversal from vertex %d is:\n", startVertex);
-
-    // Iterate while queue not empty
-    while (!isEmpty(q))
+    NodeT *curr = Q->head;
+    while (curr != NULL)
     {
-        printf("%d ", pollQueue(q));
-        int currentVertex = dequeue(q);
+        NodeT *temp = curr->next;
+        free(curr);
+        curr = temp;
+    }
+    free(Q);
+}
 
-        struct node *temp = graph->adjLists[currentVertex];
-        // Add all unvisited neighbours of current vertex to queue to be printed
-        // next
-        while (temp)
-        {
-            int adjVertex = temp->vertex;
-            // Only add if neighbour is unvisited
-            if (graph->visited[adjVertex] == 0)
+// check whether queue is empty
+int QueueIsEmpty(queue Q) { return (Q->length == 0); }
+
+// insert an int at end of queue
+void QueueEnqueue(queue Q, int v)
+{
+    NodeT *new = malloc(sizeof(NodeT));
+    assert(new != NULL);
+    new->data = v;
+    new->next = NULL;
+    if (Q->tail != NULL)
+    {
+        Q->tail->next = new;
+        Q->tail = new;
+    }
+    else
+    {
+        Q->head = new;
+        Q->tail = new;
+    }
+    Q->length++;
+}
+
+// remove int from front of queue
+int QueueDequeue(queue Q)
+{
+    assert(Q->length > 0);
+    NodeT *p = Q->head;
+    Q->head = Q->head->next;
+    if (Q->head == NULL)
+    {
+        Q->tail = NULL;
+    }
+    Q->length--;
+    int d = p->data;
+    free(p);
+    return d;
+}
+
+bool bfs(Graph g, int nV, Vertex src, Vertex dest)
+{
+    Vertex v;
+    for (v = 0; v < nV; v++) visited[v] = -1;
+
+    visited[src] = src;
+    queue Q = newQueue();
+    QueueEnqueue(Q, src);
+    while (!QueueIsEmpty(Q))
+    {
+        v = QueueDequeue(Q);
+        Vertex w;
+        for (w = 0; w < nV; w++)
+            if (adjacent(g, v, w) && visited[w] == -1)
             {
-                graph->visited[adjVertex] = 1;
-                enqueue(q, adjVertex);
+                visited[w] = v;
+                if (w == dest)
+                    return true;
+                else
+                    QueueEnqueue(Q, w);
             }
-            temp = temp->next;
-        }
     }
-}
-// Memory for a graph node
-struct node *createNode(int v)
-{
-    struct node *newNode = malloc(sizeof(struct node));
-    newNode->vertex = v;
-    newNode->next = NULL;
-    return newNode;
-}
-// Allocates memory for graph data structure, in adjacency list format
-struct Graph *createGraph(int vertices)
-{
-    struct Graph *graph = malloc(sizeof(struct Graph));
-    graph->numVertices = vertices;
-
-    graph->adjLists = malloc(vertices * sizeof(struct node *));
-    graph->visited = malloc(vertices * sizeof(int));
-
-    int i;
-    for (i = 0; i < vertices; i++)
-    {
-        graph->adjLists[i] = NULL;
-        graph->visited[i] = 0;
-    }
-
-    return graph;
-}
-// Adds bidirectional edge to graph
-void addEdge(struct Graph *graph, int src, int dest)
-{
-    // Add edge from src to dest
-    struct node *newNode = createNode(dest);
-    newNode->next = graph->adjLists[src];
-    graph->adjLists[src] = newNode;
-
-    // Add edge from dest to src; comment it out for directed graph
-    newNode = createNode(src);
-    newNode->next = graph->adjLists[dest];
-    graph->adjLists[dest] = newNode;
-}
-// Allocates memory for our queue data structure
-struct queue *createQueue()
-{
-    struct queue *q = malloc(sizeof(struct queue));
-    q->front = -1;
-    q->rear = -1;
-    return q;
-}
-// Checks for empty queue
-int isEmpty(struct queue *q)
-{
-    if (q->rear == -1)
-        return 1;
-    else
-        return 0;
-}
-// Inserts item at start of queue
-void enqueue(struct queue *q, int value)
-{
-    if (q->rear == SIZE - 1)
-        printf("\nQueue is Full!!");
-    else
-    {
-        if (q->front == -1)
-            q->front = 0;
-        q->rear++;
-        q->items[q->rear] = value;
-    }
-}
-// Returns item at front of queue and removes it from queue
-int dequeue(struct queue *q)
-{
-    int item;
-    if (isEmpty(q))
-    {
-        printf("Queue is empty");
-        item = -1;
-    }
-    else
-    {
-        item = q->items[q->front];
-        q->front++;
-        if (q->front > q->rear)
-        {
-            q->front = q->rear = -1;
-        }
-    }
-    return item;
+    return false;
 }
 
-// Returns element at front of queue
-int pollQueue(struct queue *q) { return q->items[q->front]; }
+// int main(void)
+// {
+//     int V = 10;
+//     Graph g = newGraph(V);
+
+//     Edge e;
+//     e.v = 0;
+//     e.w = 1;
+//     insertEdge(g, e);
+//     e.v = 0;
+//     e.w = 2;
+//     insertEdge(g, e);
+//     e.v = 0;
+//     e.w = 5;
+//     insertEdge(g, e);
+//     e.v = 1;
+//     e.w = 5;
+//     insertEdge(g, e);
+//     e.v = 2;
+//     e.w = 3;
+//     insertEdge(g, e);
+//     e.v = 3;
+//     e.w = 4;
+//     insertEdge(g, e);
+//     e.v = 3;
+//     e.w = 5;
+//     insertEdge(g, e);
+//     e.v = 3;
+//     e.w = 8;
+//     insertEdge(g, e);
+//     e.v = 4;
+//     e.w = 5;
+//     insertEdge(g, e);
+//     e.v = 4;
+//     e.w = 7;
+//     insertEdge(g, e);
+//     e.v = 4;
+//     e.w = 8;
+//     insertEdge(g, e);
+//     e.v = 5;
+//     e.w = 6;
+//     insertEdge(g, e);
+//     e.v = 7;
+//     e.w = 8;
+//     insertEdge(g, e);
+//     e.v = 7;
+//     e.w = 9;
+//     insertEdge(g, e);
+//     e.v = 8;
+//     e.w = 9;
+//     insertEdge(g, e);
+
+//     int src = 0, dest = 6;
+//     if (bfs(g, V, src, dest))
+//     {
+//         Vertex v = dest;
+//         while (v != src)
+//         {
+//             printf("%d - ", v);
+//             v = visited[v];
+//         }
+//         printf("%d\n", src);
+//     }
+//     return 0;
+// }
