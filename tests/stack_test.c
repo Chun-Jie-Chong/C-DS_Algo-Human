@@ -10,7 +10,7 @@ void testIsEmptyAfterCreation() {
 
 // Test case to check the size of the stack after pushing elements
 void testSizeAfterPush() {
-     initStack();
+    initStack();
 
     int a = 10;
     int b = 20;
@@ -19,7 +19,7 @@ void testSizeAfterPush() {
     push(&a);
     push(&b);
     push(&c);
-    CU_ASSERT_EQUAL(size(), 2);
+    CU_ASSERT_EQUAL(size(), 3);
 }
 
 void testTopAfterPush() {
@@ -72,7 +72,7 @@ void testPop() {
 
 int main() {
     CU_initialize_registry();
-    CU_pSuite suite = CU_add_suite("MergeSort_Test_Suite", 0, 0);
+    CU_pSuite suite = CU_add_suite("Stack_Test_Suite", 0, 0);
     CU_add_test(suite, "Test if stack is empty after creation", testIsEmptyAfterCreation);
     CU_add_test(suite, "Test size of stack after pushing elements", testSizeAfterPush);
     CU_add_test(suite, "Test top element after pushing elements", testTopAfterPush);

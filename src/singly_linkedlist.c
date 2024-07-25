@@ -117,63 +117,63 @@ void viewlist() // function to display values
     }
 }
 //////////////////////////////////////////////////////////////////
-static void test()
-{
-    insert(1, 39);
-    assert(start->info == 39);
-    insert(2, 10);
-    insert(3, 11);
-    deletion(1);
-    assert(start->info != 39);
+// static void test()
+// {
+//     insert(1, 39);
+//     assert(start->info == 39);
+//     insert(2, 10);
+//     insert(3, 11);
+//     deletion(1);
+//     assert(start->info != 39);
 
-    printf("Self-tests successfully passed!\n");
-}
+//     printf("Self-tests successfully passed!\n");
+// }
 //////////////////////////////////////////////////////////////////
-int main()
-{
-    int n = 0, pos = 0, p = 0, num = 0, c = 0;
-    printf("\n1.self test mode");
-    printf("\n2.interactive mode");
-    printf("\nenter your choice:");
-    scanf("%d", &c);
-    if (c == 1)
-    {
-        test();
-    }
-    else if (c == 2)
-    {
-        while (1)
-        {
-            printf("\n1.add value at the given location");
-            printf("\n2.delete value at the given location");
-            printf("\n3.view list");
-            printf("\nenter your choice :");
-            scanf("%d", &n);
-            switch (n)
-            {
-            case 1:
-                printf("enter the position where the element is to be added :");
-                scanf("%d", &p);
-                printf("enter the element is to be added :");
-                scanf("%d", &num);
-                insert(p, num);
-                break;
-            case 2:
-                printf("enter the position where the element is to be deleted :");
-                scanf("%d", &pos);
-                deletion(pos);
-                break;
-            case 3:
-                viewlist();
-                break;
-            default:
-                printf("\ninvalid choice");
-            }
-        }
-    }
-    else
-    {
-        printf("Invalid choice");
-    }
-    return 0;
-}
+// int main()
+// {
+//     int n = 0, pos = 0, p = 0, num = 0, c = 0;
+//     printf("\n1.self test mode");
+//     printf("\n2.interactive mode");
+//     printf("\nenter your choice:");
+//     scanf("%d", &c);
+//     if (c == 1)
+//     {
+//         test();
+//     }
+//     else if (c == 2)
+//     {
+//         while (1)
+//         {
+//             printf("\n1.add value at the given location");
+//             printf("\n2.delete value at the given location");
+//             printf("\n3.view list");
+//             printf("\nenter your choice :");
+//             scanf("%d", &n);
+//             switch (n)
+//             {
+//             case 1:
+//                 printf("enter the position where the element is to be added :");
+//                 scanf("%d", &p);
+//                 printf("enter the element is to be added :");
+//                 scanf("%d", &num);
+//                 insert(p, num);
+//                 break;
+//             case 2:
+//                 printf("enter the position where the element is to be deleted :");
+//                 scanf("%d", &pos);
+//                 deletion(pos);
+//                 break;
+//             case 3:
+//                 viewlist();
+//                 break;
+//             default:
+//                 printf("\ninvalid choice");
+//             }
+//         }
+//     }
+//     else
+//     {
+//         printf("Invalid choice");
+//     }
+//     return 0;
+// }

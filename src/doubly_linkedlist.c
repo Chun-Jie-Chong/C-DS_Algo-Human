@@ -78,13 +78,13 @@ void example();
  * @brief   Main function
  * @returns 0   on exit
  */
-int main()
-{
-    // examples for better understanding
-    example();
-    // code here
-    return 0;
-}
+// int main()
+// {
+//     // examples for better understanding
+//     example();
+//     // code here
+//     return 0;
+// }
 
 /**
  * @brief   Create list function, a new list containing one node will be created
@@ -268,28 +268,28 @@ void print(List *list)
  * @brief   Example function
  * @returns void
  */
-void example()
-{
-    List *my_list = NULL;
-    double node_value = 0;
-    int searching;
+// void example()
+// {
+//     List *my_list = NULL;
+//     double node_value = 0;
+//     int searching;
 
-    my_list = create(node_value);
-    my_list = insert(my_list, 3, 1);
-    my_list = insert(my_list, 5, 3);
-    my_list = insert(my_list, 10, 3);
-    my_list = insert(my_list, 20, 3);
+//     my_list = create(node_value);
+//     my_list = insert(my_list, 3, 1);
+//     my_list = insert(my_list, 5, 3);
+//     my_list = insert(my_list, 10, 3);
+//     my_list = insert(my_list, 20, 3);
 
-    print(my_list);
-    searching = search(my_list, 20);
-    printf("\n%d\n", searching);
+//     print(my_list);
+//     searching = search(my_list, 20);
+//     printf("\n%d\n", searching);
 
-    my_list = delete (my_list, 1);
-    my_list = delete (my_list, 1);
-    my_list = delete (my_list, 1);
-    my_list = delete (my_list, 1);
+//     my_list = delete (my_list, 1);
+//     my_list = delete (my_list, 1);
+//     my_list = delete (my_list, 1);
+//     my_list = delete (my_list, 1);
 
-    print(my_list);
-    searching = search(my_list, 20);
-    printf("\n%d\n", searching);
-}
+//     print(my_list);
+//     searching = search(my_list, 20);
+//     printf("\n%d\n", searching);
+// }

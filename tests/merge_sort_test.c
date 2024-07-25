@@ -71,7 +71,7 @@ void testMergeSort_AlreadySorted() {
 // Main function
 int main() {
     CU_initialize_registry();
-    CU_pSuite suite = CU_add_suite("Stack_Test_Suite", 0, 0);
+    CU_pSuite suite = CU_add_suite("MergeSort_Test_Suite", 0, 0);
     CU_add_test(suite, "test_positive_integers", testMergeSort_PositiveIntegers);
     CU_add_test(suite, "test_negative_integers", testMergeSort_NegativeIntegers);
     CU_add_test(suite, "test_duplicate_elements", testMergeSort_DuplicateElements);
