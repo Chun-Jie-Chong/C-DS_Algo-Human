@@ -1,1153 +1,399 @@
-// https://github.com/tidwall/hashmap.c/tree/master
+// https://github.com/petewarden/c_hashmap/blob/master/hashmap.c
 
-// Copyright 2020 Joshua J Baker. All rights reserved.
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stddef.h>
+/*
+ * Generic map implementation.
+ */
 #include "hash_map.h"
 
-#define GROW_AT   0.60 /* 60% */
-#define SHRINK_AT 0.10 /* 10% */
-
-#ifndef HASHMAP_LOAD_FACTOR
-#define HASHMAP_LOAD_FACTOR GROW_AT
-#endif
-
-static void *(*__malloc)(size_t) = NULL;
-static void *(*__realloc)(void *, size_t) = NULL;
-static void (*__free)(void *) = NULL;
-
-// hashmap_set_allocator allows for configuring a custom allocator for
-// all hashmap library operations. This function, if needed, should be called
-// only once at startup and a prior to calling hashmap_new().
-void hashmap_set_allocator(void *(*malloc)(size_t), void (*free)(void*)) {
-    __malloc = malloc;
-    __free = free;
-}
-
-struct bucket {
-    uint64_t hash:48;
-    uint64_t dib:16;
-};
-
-// hashmap is an open addressed hash map using robinhood hashing.
-struct hashmap {
-    void *(*malloc)(size_t);
-    void *(*realloc)(void *, size_t);
-    void (*free)(void *);
-    size_t elsize;
-    size_t cap;
-    uint64_t seed0;
-    uint64_t seed1;
-    uint64_t (*hash)(const void *item, uint64_t seed0, uint64_t seed1);
-    int (*compare)(const void *a, const void *b, void *udata);
-    void (*elfree)(void *item);
-    void *udata;
-    size_t bucketsz;
-    size_t nbuckets;
-    size_t count;
-    size_t mask;
-    size_t growat;
-    size_t shrinkat;
-    uint8_t loadfactor;
-    uint8_t growpower;
-    bool oom;
-    void *buckets;
-    void *spare;
-    void *edata;
-};
-
-void hashmap_set_grow_by_power(struct hashmap *map, size_t power) {
-    map->growpower = power < 1 ? 1 : power > 16 ? 16 : power;
-}
-
-static double clamp_load_factor(double factor, double default_factor) {
-    // Check for NaN and clamp between 50% and 90%
-    return factor != factor ? default_factor : 
-           factor < 0.50 ? 0.50 : 
-           factor > 0.95 ? 0.95 : 
-           factor;
-}
-
-void hashmap_set_load_factor(struct hashmap *map, double factor) {
-    factor = clamp_load_factor(factor, map->loadfactor / 100.0);
-    map->loadfactor = factor * 100;
-    map->growat = map->nbuckets * (map->loadfactor / 100.0);
-}
-
-static struct bucket *bucket_at0(void *buckets, size_t bucketsz, size_t i) {
-    return (struct bucket*)(((char*)buckets)+(bucketsz*i));
-}
-
-static struct bucket *bucket_at(struct hashmap *map, size_t index) {
-    return bucket_at0(map->buckets, map->bucketsz, index);
-}
-
-static void *bucket_item(struct bucket *entry) {
-    return ((char*)entry)+sizeof(struct bucket);
-}
-
-static uint64_t clip_hash(uint64_t hash) {
-    return hash & 0xFFFFFFFFFFFF;
-}
-
-static uint64_t get_hash(struct hashmap *map, const void *key) {
-    return clip_hash(map->hash(key, map->seed0, map->seed1));
-}
-
-
-// hashmap_new_with_allocator returns a new hash map using a custom allocator.
-// See hashmap_new for more information information
-struct hashmap *hashmap_new_with_allocator(void *(*_malloc)(size_t), 
-    void *(*_realloc)(void*, size_t), void (*_free)(void*),
-    size_t elsize, size_t cap, uint64_t seed0, uint64_t seed1,
-    uint64_t (*hash)(const void *item, uint64_t seed0, uint64_t seed1),
-    int (*compare)(const void *a, const void *b, void *udata),
-    void (*elfree)(void *item),
-    void *udata)
-{
-    _malloc = _malloc ? _malloc : __malloc ? __malloc : malloc;
-    _realloc = _realloc ? _realloc : __realloc ? __realloc : realloc;
-    _free = _free ? _free : __free ? __free : free;
-    size_t ncap = 16;
-    if (cap < ncap) {
-        cap = ncap;
-    } else {
-        while (ncap < cap) {
-            ncap *= 2;
-        }
-        cap = ncap;
-    }
-    size_t bucketsz = sizeof(struct bucket) + elsize;
-    while (bucketsz & (sizeof(uintptr_t)-1)) {
-        bucketsz++;
-    }
-    // hashmap + spare + edata
-    size_t size = sizeof(struct hashmap)+bucketsz*2;
-    struct hashmap *map = _malloc(size);
-    if (!map) {
-        return NULL;
-    }
-    memset(map, 0, sizeof(struct hashmap));
-    map->elsize = elsize;
-    map->bucketsz = bucketsz;
-    map->seed0 = seed0;
-    map->seed1 = seed1;
-    map->hash = hash;
-    map->compare = compare;
-    map->elfree = elfree;
-    map->udata = udata;
-    map->spare = ((char*)map)+sizeof(struct hashmap);
-    map->edata = (char*)map->spare+bucketsz;
-    map->cap = cap;
-    map->nbuckets = cap;
-    map->mask = map->nbuckets-1;
-    map->buckets = _malloc(map->bucketsz*map->nbuckets);
-    if (!map->buckets) {
-        _free(map);
-        return NULL;
-    }
-    memset(map->buckets, 0, map->bucketsz*map->nbuckets);
-    map->growpower = 1;
-    map->loadfactor = clamp_load_factor(HASHMAP_LOAD_FACTOR, GROW_AT) * 100;
-    map->growat = map->nbuckets * (map->loadfactor / 100.0);
-    map->shrinkat = map->nbuckets * SHRINK_AT;
-    map->malloc = _malloc;
-    map->realloc = _realloc;
-    map->free = _free;
-    return map;  
-}
-
-// hashmap_new returns a new hash map. 
-// Param `elsize` is the size of each element in the tree. Every element that
-// is inserted, deleted, or retrieved will be this size.
-// Param `cap` is the default lower capacity of the hashmap. Setting this to
-// zero will default to 16.
-// Params `seed0` and `seed1` are optional seed values that are passed to the 
-// following `hash` function. These can be any value you wish but it's often 
-// best to use randomly generated values.
-// Param `hash` is a function that generates a hash value for an item. It's
-// important that you provide a good hash function, otherwise it will perform
-// poorly or be vulnerable to Denial-of-service attacks. This implementation
-// comes with two helper functions `hashmap_sip()` and `hashmap_murmur()`.
-// Param `compare` is a function that compares items in the tree. See the 
-// qsort stdlib function for an example of how this function works.
-// The hashmap must be freed with hashmap_free(). 
-// Param `elfree` is a function that frees a specific item. This should be NULL
-// unless you're storing some kind of reference data in the hash.
-struct hashmap *hashmap_new(size_t elsize, size_t cap, uint64_t seed0, 
-    uint64_t seed1,
-    uint64_t (*hash)(const void *item, uint64_t seed0, uint64_t seed1),
-    int (*compare)(const void *a, const void *b, void *udata),
-    void (*elfree)(void *item),
-    void *udata)
-{
-    return hashmap_new_with_allocator(NULL, NULL, NULL, elsize, cap, seed0, 
-        seed1, hash, compare, elfree, udata);
-}
-
-static void free_elements(struct hashmap *map) {
-    if (map->elfree) {
-        for (size_t i = 0; i < map->nbuckets; i++) {
-            struct bucket *bucket = bucket_at(map, i);
-            if (bucket->dib) map->elfree(bucket_item(bucket));
-        }
-    }
-}
-
-// hashmap_clear quickly clears the map. 
-// Every item is called with the element-freeing function given in hashmap_new,
-// if present, to free any data referenced in the elements of the hashmap.
-// When the update_cap is provided, the map's capacity will be updated to match
-// the currently number of allocated buckets. This is an optimization to ensure
-// that this operation does not perform any allocations.
-void hashmap_clear(struct hashmap *map, bool update_cap) {
-    map->count = 0;
-    free_elements(map);
-    if (update_cap) {
-        map->cap = map->nbuckets;
-    } else if (map->nbuckets != map->cap) {
-        void *new_buckets = map->malloc(map->bucketsz*map->cap);
-        if (new_buckets) {
-            map->free(map->buckets);
-            map->buckets = new_buckets;
-        }
-        map->nbuckets = map->cap;
-    }
-    memset(map->buckets, 0, map->bucketsz*map->nbuckets);
-    map->mask = map->nbuckets-1;
-    map->growat = map->nbuckets * (map->loadfactor / 100.0) ;
-    map->shrinkat = map->nbuckets * SHRINK_AT;
-}
-
-static bool resize0(struct hashmap *map, size_t new_cap) {
-    struct hashmap *map2 = hashmap_new_with_allocator(map->malloc, map->realloc, 
-        map->free, map->elsize, new_cap, map->seed0, map->seed1, map->hash, 
-        map->compare, map->elfree, map->udata);
-    if (!map2) return false;
-    for (size_t i = 0; i < map->nbuckets; i++) {
-        struct bucket *entry = bucket_at(map, i);
-        if (!entry->dib) {
-            continue;
-        }
-        entry->dib = 1;
-        size_t j = entry->hash & map2->mask;
-        while(1) {
-            struct bucket *bucket = bucket_at(map2, j);
-            if (bucket->dib == 0) {
-                memcpy(bucket, entry, map->bucketsz);
-                break;
-            }
-            if (bucket->dib < entry->dib) {
-                memcpy(map2->spare, bucket, map->bucketsz);
-                memcpy(bucket, entry, map->bucketsz);
-                memcpy(entry, map2->spare, map->bucketsz);
-            }
-            j = (j + 1) & map2->mask;
-            entry->dib += 1;
-        }
-    }
-    map->free(map->buckets);
-    map->buckets = map2->buckets;
-    map->nbuckets = map2->nbuckets;
-    map->mask = map2->mask;
-    map->growat = map2->growat;
-    map->shrinkat = map2->shrinkat;
-    map->free(map2);
-    return true;
-}
-
-static bool resize(struct hashmap *map, size_t new_cap) {
-    return resize0(map, new_cap);
-}
-
-// hashmap_set_with_hash works like hashmap_set but you provide your
-// own hash. The 'hash' callback provided to the hashmap_new function
-// will not be called
-const void *hashmap_set_with_hash(struct hashmap *map, const void *item,
-    uint64_t hash)
-{
-    hash = clip_hash(hash);
-    map->oom = false;
-    if (map->count >= map->growat) {
-        if (!resize(map, map->nbuckets*(1<<map->growpower))) {
-            map->oom = true;
-            return NULL;
-        }
-    }
-
-    struct bucket *entry = map->edata;
-    entry->hash = hash;
-    entry->dib = 1;
-    void *eitem = bucket_item(entry);
-    memcpy(eitem, item, map->elsize);
-
-    void *bitem;
-    size_t i = entry->hash & map->mask;
-    while(1) {
-        struct bucket *bucket = bucket_at(map, i);
-        if (bucket->dib == 0) {
-            memcpy(bucket, entry, map->bucketsz);
-            map->count++;
-            return NULL;
-        }
-        bitem = bucket_item(bucket);
-        if (entry->hash == bucket->hash && (!map->compare ||
-            map->compare(eitem, bitem, map->udata) == 0))
-        {
-            memcpy(map->spare, bitem, map->elsize);
-            memcpy(bitem, eitem, map->elsize);
-            return map->spare;
-        }
-        if (bucket->dib < entry->dib) {
-            memcpy(map->spare, bucket, map->bucketsz);
-            memcpy(bucket, entry, map->bucketsz);
-            memcpy(entry, map->spare, map->bucketsz);
-            eitem = bucket_item(entry);
-        }
-        i = (i + 1) & map->mask;
-        entry->dib += 1;
-    }
-}
-
-// hashmap_set inserts or replaces an item in the hash map. If an item is
-// replaced then it is returned otherwise NULL is returned. This operation
-// may allocate memory. If the system is unable to allocate additional
-// memory then NULL is returned and hashmap_oom() returns true.
-const void *hashmap_set(struct hashmap *map, const void *item) {
-    return hashmap_set_with_hash(map, item, get_hash(map, item));
-}
-
-// hashmap_get_with_hash works like hashmap_get but you provide your
-// own hash. The 'hash' callback provided to the hashmap_new function
-// will not be called
-const void *hashmap_get_with_hash(struct hashmap *map, const void *key, 
-    uint64_t hash)
-{
-    hash = clip_hash(hash);
-    size_t i = hash & map->mask;
-    while(1) {
-        struct bucket *bucket = bucket_at(map, i);
-        if (!bucket->dib) return NULL;
-        if (bucket->hash == hash) {
-            void *bitem = bucket_item(bucket);
-            if (!map->compare || map->compare(key, bitem, map->udata) == 0) {
-                return bitem;
-            }
-        }
-        i = (i + 1) & map->mask;
-    }
-}
-
-// hashmap_get returns the item based on the provided key. If the item is not
-// found then NULL is returned.
-const void *hashmap_get(struct hashmap *map, const void *key) {
-    return hashmap_get_with_hash(map, key, get_hash(map, key));
-}
-
-// hashmap_probe returns the item in the bucket at position or NULL if an item
-// is not set for that bucket. The position is 'moduloed' by the number of 
-// buckets in the hashmap.
-const void *hashmap_probe(struct hashmap *map, uint64_t position) {
-    size_t i = position & map->mask;
-    struct bucket *bucket = bucket_at(map, i);
-    if (!bucket->dib) {
-        return NULL;
-    }
-    return bucket_item(bucket);
-}
-
-// hashmap_delete_with_hash works like hashmap_delete but you provide your
-// own hash. The 'hash' callback provided to the hashmap_new function
-// will not be called
-const void *hashmap_delete_with_hash(struct hashmap *map, const void *key,
-    uint64_t hash)
-{
-    hash = clip_hash(hash);
-    map->oom = false;
-    size_t i = hash & map->mask;
-    while(1) {
-        struct bucket *bucket = bucket_at(map, i);
-        if (!bucket->dib) {
-            return NULL;
-        }
-        void *bitem = bucket_item(bucket);
-        if (bucket->hash == hash && (!map->compare ||
-            map->compare(key, bitem, map->udata) == 0))
-        {
-            memcpy(map->spare, bitem, map->elsize);
-            bucket->dib = 0;
-            while(1) {
-                struct bucket *prev = bucket;
-                i = (i + 1) & map->mask;
-                bucket = bucket_at(map, i);
-                if (bucket->dib <= 1) {
-                    prev->dib = 0;
-                    break;
-                }
-                memcpy(prev, bucket, map->bucketsz);
-                prev->dib--;
-            }
-            map->count--;
-            if (map->nbuckets > map->cap && map->count <= map->shrinkat) {
-                // Ignore the return value. It's ok for the resize operation to
-                // fail to allocate enough memory because a shrink operation
-                // does not change the integrity of the data.
-                resize(map, map->nbuckets/2);
-            }
-            return map->spare;
-        }
-        i = (i + 1) & map->mask;
-    }
-}
-
-// hashmap_delete removes an item from the hash map and returns it. If the
-// item is not found then NULL is returned.
-const void *hashmap_delete(struct hashmap *map, const void *key) {
-    return hashmap_delete_with_hash(map, key, get_hash(map, key));
-}
-
-// hashmap_count returns the number of items in the hash map.
-size_t hashmap_count(struct hashmap *map) {
-    return map->count;
-}
-
-// hashmap_free frees the hash map
-// Every item is called with the element-freeing function given in hashmap_new,
-// if present, to free any data referenced in the elements of the hashmap.
-void hashmap_free(struct hashmap *map) {
-    if (!map) return;
-    free_elements(map);
-    map->free(map->buckets);
-    map->free(map);
-}
-
-// hashmap_oom returns true if the last hashmap_set() call failed due to the 
-// system being out of memory.
-bool hashmap_oom(struct hashmap *map) {
-    return map->oom;
-}
-
-// hashmap_scan iterates over all items in the hash map
-// Param `iter` can return false to stop iteration early.
-// Returns false if the iteration has been stopped early.
-bool hashmap_scan(struct hashmap *map, 
-    bool (*iter)(const void *item, void *udata), void *udata)
-{
-    for (size_t i = 0; i < map->nbuckets; i++) {
-        struct bucket *bucket = bucket_at(map, i);
-        if (bucket->dib && !iter(bucket_item(bucket), udata)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// hashmap_iter iterates one key at a time yielding a reference to an
-// entry at each iteration. Useful to write simple loops and avoid writing
-// dedicated callbacks and udata structures, as in hashmap_scan.
-//
-// map is a hash map handle. i is a pointer to a size_t cursor that
-// should be initialized to 0 at the beginning of the loop. item is a void
-// pointer pointer that is populated with the retrieved item. Note that this
-// is NOT a copy of the item stored in the hash map and can be directly
-// modified.
-//
-// Note that if hashmap_delete() is called on the hashmap being iterated,
-// the buckets are rearranged and the iterator must be reset to 0, otherwise
-// unexpected results may be returned after deletion.
-//
-// This function has not been tested for thread safety.
-//
-// The function returns true if an item was retrieved; false if the end of the
-// iteration has been reached.
-bool hashmap_iter(struct hashmap *map, size_t *i, void **item) {
-    struct bucket *bucket;
-    do {
-        if (*i >= map->nbuckets) return false;
-        bucket = bucket_at(map, *i);
-        (*i)++;
-    } while (!bucket->dib);
-    *item = bucket_item(bucket);
-    return true;
-}
-
-
-//-----------------------------------------------------------------------------
-// SipHash reference C implementation
-//
-// Copyright (c) 2012-2016 Jean-Philippe Aumasson
-// <jeanphilippe.aumasson@gmail.com>
-// Copyright (c) 2012-2014 Daniel J. Bernstein <djb@cr.yp.to>
-//
-// To the extent possible under law, the author(s) have dedicated all copyright
-// and related and neighboring rights to this software to the public domain
-// worldwide. This software is distributed without any warranty.
-//
-// You should have received a copy of the CC0 Public Domain Dedication along
-// with this software. If not, see
-// <http://creativecommons.org/publicdomain/zero/1.0/>.
-//
-// default: SipHash-2-4
-//-----------------------------------------------------------------------------
-static uint64_t SIP64(const uint8_t *in, const size_t inlen, uint64_t seed0,
-    uint64_t seed1) 
-{
-#define U8TO64_LE(p) \
-    {  (((uint64_t)((p)[0])) | ((uint64_t)((p)[1]) << 8) | \
-        ((uint64_t)((p)[2]) << 16) | ((uint64_t)((p)[3]) << 24) | \
-        ((uint64_t)((p)[4]) << 32) | ((uint64_t)((p)[5]) << 40) | \
-        ((uint64_t)((p)[6]) << 48) | ((uint64_t)((p)[7]) << 56)) }
-#define U64TO8_LE(p, v) \
-    { U32TO8_LE((p), (uint32_t)((v))); \
-      U32TO8_LE((p) + 4, (uint32_t)((v) >> 32)); }
-#define U32TO8_LE(p, v) \
-    { (p)[0] = (uint8_t)((v)); \
-      (p)[1] = (uint8_t)((v) >> 8); \
-      (p)[2] = (uint8_t)((v) >> 16); \
-      (p)[3] = (uint8_t)((v) >> 24); }
-#define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
-#define SIPROUND \
-    { v0 += v1; v1 = ROTL(v1, 13); \
-      v1 ^= v0; v0 = ROTL(v0, 32); \
-      v2 += v3; v3 = ROTL(v3, 16); \
-      v3 ^= v2; \
-      v0 += v3; v3 = ROTL(v3, 21); \
-      v3 ^= v0; \
-      v2 += v1; v1 = ROTL(v1, 17); \
-      v1 ^= v2; v2 = ROTL(v2, 32); }
-    uint64_t k0 = U8TO64_LE((uint8_t*)&seed0);
-    uint64_t k1 = U8TO64_LE((uint8_t*)&seed1);
-    uint64_t v3 = UINT64_C(0x7465646279746573) ^ k1;
-    uint64_t v2 = UINT64_C(0x6c7967656e657261) ^ k0;
-    uint64_t v1 = UINT64_C(0x646f72616e646f6d) ^ k1;
-    uint64_t v0 = UINT64_C(0x736f6d6570736575) ^ k0;
-    const uint8_t *end = in + inlen - (inlen % sizeof(uint64_t));
-    for (; in != end; in += 8) {
-        uint64_t m = U8TO64_LE(in);
-        v3 ^= m;
-        SIPROUND; SIPROUND;
-        v0 ^= m;
-    }
-    const int left = inlen & 7;
-    uint64_t b = ((uint64_t)inlen) << 56;
-    switch (left) {
-    case 7: b |= ((uint64_t)in[6]) << 48; /* fall through */
-    case 6: b |= ((uint64_t)in[5]) << 40; /* fall through */
-    case 5: b |= ((uint64_t)in[4]) << 32; /* fall through */
-    case 4: b |= ((uint64_t)in[3]) << 24; /* fall through */
-    case 3: b |= ((uint64_t)in[2]) << 16; /* fall through */
-    case 2: b |= ((uint64_t)in[1]) << 8; /* fall through */
-    case 1: b |= ((uint64_t)in[0]); break;
-    case 0: break;
-    }
-    v3 ^= b;
-    SIPROUND; SIPROUND;
-    v0 ^= b;
-    v2 ^= 0xff;
-    SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-    b = v0 ^ v1 ^ v2 ^ v3;
-    uint64_t out = 0;
-    U64TO8_LE((uint8_t*)&out, b);
-    return out;
-}
-
-//-----------------------------------------------------------------------------
-// MurmurHash3 was written by Austin Appleby, and is placed in the public
-// domain. The author hereby disclaims copyright to this source code.
-//
-// Murmur3_86_128
-//-----------------------------------------------------------------------------
-static uint64_t MM86128(const void *key, const int len, uint32_t seed) {
-#define	ROTL32(x, r) ((x << r) | (x >> (32 - r)))
-#define FMIX32(h) h^=h>>16; h*=0x85ebca6b; h^=h>>13; h*=0xc2b2ae35; h^=h>>16;
-    const uint8_t * data = (const uint8_t*)key;
-    const int nblocks = len / 16;
-    uint32_t h1 = seed;
-    uint32_t h2 = seed;
-    uint32_t h3 = seed;
-    uint32_t h4 = seed;
-    uint32_t c1 = 0x239b961b; 
-    uint32_t c2 = 0xab0e9789;
-    uint32_t c3 = 0x38b34ae5; 
-    uint32_t c4 = 0xa1e38b93;
-    const uint32_t * blocks = (const uint32_t *)(data + nblocks*16);
-    for (int i = -nblocks; i; i++) {
-        uint32_t k1 = blocks[i*4+0];
-        uint32_t k2 = blocks[i*4+1];
-        uint32_t k3 = blocks[i*4+2];
-        uint32_t k4 = blocks[i*4+3];
-        k1 *= c1; k1  = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
-        h1 = ROTL32(h1,19); h1 += h2; h1 = h1*5+0x561ccd1b;
-        k2 *= c2; k2  = ROTL32(k2,16); k2 *= c3; h2 ^= k2;
-        h2 = ROTL32(h2,17); h2 += h3; h2 = h2*5+0x0bcaa747;
-        k3 *= c3; k3  = ROTL32(k3,17); k3 *= c4; h3 ^= k3;
-        h3 = ROTL32(h3,15); h3 += h4; h3 = h3*5+0x96cd1c35;
-        k4 *= c4; k4  = ROTL32(k4,18); k4 *= c1; h4 ^= k4;
-        h4 = ROTL32(h4,13); h4 += h1; h4 = h4*5+0x32ac3b17;
-    }
-    const uint8_t * tail = (const uint8_t*)(data + nblocks*16);
-    uint32_t k1 = 0;
-    uint32_t k2 = 0;
-    uint32_t k3 = 0;
-    uint32_t k4 = 0;
-    switch(len & 15) {
-    case 15: k4 ^= tail[14] << 16; /* fall through */
-    case 14: k4 ^= tail[13] << 8; /* fall through */
-    case 13: k4 ^= tail[12] << 0;
-             k4 *= c4; k4  = ROTL32(k4,18); k4 *= c1; h4 ^= k4;
-             /* fall through */
-    case 12: k3 ^= tail[11] << 24; /* fall through */
-    case 11: k3 ^= tail[10] << 16; /* fall through */
-    case 10: k3 ^= tail[ 9] << 8; /* fall through */
-    case  9: k3 ^= tail[ 8] << 0;
-             k3 *= c3; k3  = ROTL32(k3,17); k3 *= c4; h3 ^= k3;
-             /* fall through */
-    case  8: k2 ^= tail[ 7] << 24; /* fall through */
-    case  7: k2 ^= tail[ 6] << 16; /* fall through */
-    case  6: k2 ^= tail[ 5] << 8; /* fall through */
-    case  5: k2 ^= tail[ 4] << 0;
-             k2 *= c2; k2  = ROTL32(k2,16); k2 *= c3; h2 ^= k2;
-             /* fall through */
-    case  4: k1 ^= tail[ 3] << 24; /* fall through */
-    case  3: k1 ^= tail[ 2] << 16; /* fall through */
-    case  2: k1 ^= tail[ 1] << 8; /* fall through */
-    case  1: k1 ^= tail[ 0] << 0;
-             k1 *= c1; k1  = ROTL32(k1,15); k1 *= c2; h1 ^= k1;
-             /* fall through */
-    };
-    h1 ^= len; h2 ^= len; h3 ^= len; h4 ^= len;
-    h1 += h2; h1 += h3; h1 += h4;
-    h2 += h1; h3 += h1; h4 += h1;
-    FMIX32(h1); FMIX32(h2); FMIX32(h3); FMIX32(h4);
-    h1 += h2; h1 += h3; h1 += h4;
-    h2 += h1; h3 += h1; h4 += h1;
-    return (((uint64_t)h2)<<32)|h1;
-}
-
-//-----------------------------------------------------------------------------
-// xxHash Library
-// Copyright (c) 2012-2021 Yann Collet
-// All rights reserved.
-// 
-// BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
-//
-// xxHash3
-//-----------------------------------------------------------------------------
-#define XXH_PRIME_1 11400714785074694791ULL
-#define XXH_PRIME_2 14029467366897019727ULL
-#define XXH_PRIME_3 1609587929392839161ULL
-#define XXH_PRIME_4 9650029242287828579ULL
-#define XXH_PRIME_5 2870177450012600261ULL
-
-static uint64_t XXH_read64(const void* memptr) {
-    uint64_t val;
-    memcpy(&val, memptr, sizeof(val));
-    return val;
-}
-
-static uint32_t XXH_read32(const void* memptr) {
-    uint32_t val;
-    memcpy(&val, memptr, sizeof(val));
-    return val;
-}
-
-static uint64_t XXH_rotl64(uint64_t x, int r) {
-    return (x << r) | (x >> (64 - r));
-}
-
-static uint64_t xxh3(const void* data, size_t len, uint64_t seed) {
-    const uint8_t* p = (const uint8_t*)data;
-    const uint8_t* const end = p + len;
-    uint64_t h64;
-
-    if (len >= 32) {
-        const uint8_t* const limit = end - 32;
-        uint64_t v1 = seed + XXH_PRIME_1 + XXH_PRIME_2;
-        uint64_t v2 = seed + XXH_PRIME_2;
-        uint64_t v3 = seed + 0;
-        uint64_t v4 = seed - XXH_PRIME_1;
-
-        do {
-            v1 += XXH_read64(p) * XXH_PRIME_2;
-            v1 = XXH_rotl64(v1, 31);
-            v1 *= XXH_PRIME_1;
-
-            v2 += XXH_read64(p + 8) * XXH_PRIME_2;
-            v2 = XXH_rotl64(v2, 31);
-            v2 *= XXH_PRIME_1;
-
-            v3 += XXH_read64(p + 16) * XXH_PRIME_2;
-            v3 = XXH_rotl64(v3, 31);
-            v3 *= XXH_PRIME_1;
-
-            v4 += XXH_read64(p + 24) * XXH_PRIME_2;
-            v4 = XXH_rotl64(v4, 31);
-            v4 *= XXH_PRIME_1;
-
-            p += 32;
-        } while (p <= limit);
-
-        h64 = XXH_rotl64(v1, 1) + XXH_rotl64(v2, 7) + XXH_rotl64(v3, 12) + 
-            XXH_rotl64(v4, 18);
-
-        v1 *= XXH_PRIME_2;
-        v1 = XXH_rotl64(v1, 31);
-        v1 *= XXH_PRIME_1;
-        h64 ^= v1;
-        h64 = h64 * XXH_PRIME_1 + XXH_PRIME_4;
-
-        v2 *= XXH_PRIME_2;
-        v2 = XXH_rotl64(v2, 31);
-        v2 *= XXH_PRIME_1;
-        h64 ^= v2;
-        h64 = h64 * XXH_PRIME_1 + XXH_PRIME_4;
-
-        v3 *= XXH_PRIME_2;
-        v3 = XXH_rotl64(v3, 31);
-        v3 *= XXH_PRIME_1;
-        h64 ^= v3;
-        h64 = h64 * XXH_PRIME_1 + XXH_PRIME_4;
-
-        v4 *= XXH_PRIME_2;
-        v4 = XXH_rotl64(v4, 31);
-        v4 *= XXH_PRIME_1;
-        h64 ^= v4;
-        h64 = h64 * XXH_PRIME_1 + XXH_PRIME_4;
-    }
-    else {
-        h64 = seed + XXH_PRIME_5;
-    }
-
-    h64 += (uint64_t)len;
-
-    while (p + 8 <= end) {
-        uint64_t k1 = XXH_read64(p);
-        k1 *= XXH_PRIME_2;
-        k1 = XXH_rotl64(k1, 31);
-        k1 *= XXH_PRIME_1;
-        h64 ^= k1;
-        h64 = XXH_rotl64(h64, 27) * XXH_PRIME_1 + XXH_PRIME_4;
-        p += 8;
-    }
-
-    if (p + 4 <= end) {
-        h64 ^= (uint64_t)(XXH_read32(p)) * XXH_PRIME_1;
-        h64 = XXH_rotl64(h64, 23) * XXH_PRIME_2 + XXH_PRIME_3;
-        p += 4;
-    }
-
-    while (p < end) {
-        h64 ^= (*p) * XXH_PRIME_5;
-        h64 = XXH_rotl64(h64, 11) * XXH_PRIME_1;
-        p++;
-    }
-
-    h64 ^= h64 >> 33;
-    h64 *= XXH_PRIME_2;
-    h64 ^= h64 >> 29;
-    h64 *= XXH_PRIME_3;
-    h64 ^= h64 >> 32;
-
-    return h64;
-}
-
-// hashmap_sip returns a hash value for `data` using SipHash-2-4.
-uint64_t hashmap_sip(const void *data, size_t len, uint64_t seed0,
-    uint64_t seed1)
-{
-    return SIP64((uint8_t*)data, len, seed0, seed1);
-}
-
-// hashmap_murmur returns a hash value for `data` using Murmur3_86_128.
-uint64_t hashmap_murmur(const void *data, size_t len, uint64_t seed0,
-    uint64_t seed1)
-{
-    (void)seed1;
-    return MM86128(data, len, seed0);
-}
-
-uint64_t hashmap_xxhash3(const void *data, size_t len, uint64_t seed0,
-    uint64_t seed1)
-{
-    (void)seed1;
-    return xxh3(data, len ,seed0);
-}
-
-//==============================================================================
-// TESTS AND BENCHMARKS
-// $ cc -DHASHMAP_TEST hashmap.c && ./a.out              # run tests
-// $ cc -DHASHMAP_TEST -O3 hashmap.c && BENCH=1 ./a.out  # run benchmarks
-//==============================================================================
-#ifdef HASHMAP_TEST
-
-static size_t deepcount(struct hashmap *map) {
-    size_t count = 0;
-    for (size_t i = 0; i < map->nbuckets; i++) {
-        if (bucket_at(map, i)->dib) {
-            count++;
-        }
-    }
-    return count;
-}
-
-#ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wpedantic"
-#endif
-#ifdef __clang__
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wcompound-token-split-by-macro"
-#pragma GCC diagnostic ignored "-Wgnu-statement-expression-from-macro-expansion"
-#endif
-#ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#endif
-
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <assert.h>
 #include <stdio.h>
-#include "hashmap.h"
+#include <string.h>
 
-static bool rand_alloc_fail = false;
-static int rand_alloc_fail_odds = 3; // 1 in 3 chance malloc will fail.
-static uintptr_t total_allocs = 0;
-static uintptr_t total_mem = 0;
+#define INITIAL_SIZE (256)
+#define MAX_CHAIN_LENGTH (8)
 
-static void *xmalloc(size_t size) {
-    if (rand_alloc_fail && rand()%rand_alloc_fail_odds == 0) {
-        return NULL;
+/* We need to keep keys and values */
+typedef struct _hashmap_element{
+	char* key;
+	int in_use;
+	any_t data;
+} hashmap_element;
+
+/* A hashmap has some maximum size and current size,
+ * as well as the data to hold. */
+typedef struct _hashmap_map{
+	int table_size;
+	int size;
+	hashmap_element *data;
+} hashmap_map;
+
+/*
+ * Return an empty hashmap, or NULL on failure.
+ */
+map_t hashmap_new() {
+	hashmap_map* m = (hashmap_map*) malloc(sizeof(hashmap_map));
+	if(!m) goto err;
+
+	m->data = (hashmap_element*) calloc(INITIAL_SIZE, sizeof(hashmap_element));
+	if(!m->data) goto err;
+
+	m->table_size = INITIAL_SIZE;
+	m->size = 0;
+
+	return m;
+	err:
+		if (m)
+			hashmap_free(m);
+		return NULL;
+}
+
+/* The implementation here was originally done by Gary S. Brown.  I have
+   borrowed the tables directly, and made some minor changes to the
+   crc32-function (including changing the interface). //ylo */
+
+  /* ============================================================= */
+  /*  COPYRIGHT (C) 1986 Gary S. Brown.  You may use this program, or       */
+  /*  code or tables extracted from it, as desired without restriction.     */
+  /*                                                                        */
+  /*  First, the polynomial itself and its table of feedback terms.  The    */
+  /*  polynomial is                                                         */
+  /*  X^32+X^26+X^23+X^22+X^16+X^12+X^11+X^10+X^8+X^7+X^5+X^4+X^2+X^1+X^0   */
+  /*                                                                        */
+  /*  Note that we take it "backwards" and put the highest-order term in    */
+  /*  the lowest-order bit.  The X^32 term is "implied"; the LSB is the     */
+  /*  X^31 term, etc.  The X^0 term (usually shown as "+1") results in      */
+  /*  the MSB being 1.                                                      */
+  /*                                                                        */
+  /*  Note that the usual hardware shift register implementation, which     */
+  /*  is what we're using (we're merely optimizing it by doing eight-bit    */
+  /*  chunks at a time) shifts bits into the lowest-order term.  In our     */
+  /*  implementation, that means shifting towards the right.  Why do we     */
+  /*  do it this way?  Because the calculated CRC must be transmitted in    */
+  /*  order from highest-order term to lowest-order term.  UARTs transmit   */
+  /*  characters in order from LSB to MSB.  By storing the CRC this way,    */
+  /*  we hand it to the UART in the order low-byte to high-byte; the UART   */
+  /*  sends each low-bit to hight-bit; and the result is transmission bit   */
+  /*  by bit from highest- to lowest-order term without requiring any bit   */
+  /*  shuffling on our part.  Reception works similarly.                    */
+  /*                                                                        */
+  /*  The feedback terms table consists of 256, 32-bit entries.  Notes:     */
+  /*                                                                        */
+  /*      The table can be generated at runtime if desired; code to do so   */
+  /*      is shown later.  It might not be obvious, but the feedback        */
+  /*      terms simply represent the results of eight shift/xor opera-      */
+  /*      tions for all combinations of data and CRC register values.       */
+  /*                                                                        */
+  /*      The values must be right-shifted by eight bits by the "updcrc"    */
+  /*      logic; the shift must be unsigned (bring in zeroes).  On some     */
+  /*      hardware you could probably optimize the shift in assembler by    */
+  /*      using byte-swap instructions.                                     */
+  /*      polynomial $edb88320                                              */
+  /*                                                                        */
+  /*  --------------------------------------------------------------------  */
+
+static unsigned long crc32_tab[] = {
+      0x00000000L, 0x77073096L, 0xee0e612cL, 0x990951baL, 0x076dc419L,
+      0x706af48fL, 0xe963a535L, 0x9e6495a3L, 0x0edb8832L, 0x79dcb8a4L,
+      0xe0d5e91eL, 0x97d2d988L, 0x09b64c2bL, 0x7eb17cbdL, 0xe7b82d07L,
+      0x90bf1d91L, 0x1db71064L, 0x6ab020f2L, 0xf3b97148L, 0x84be41deL,
+      0x1adad47dL, 0x6ddde4ebL, 0xf4d4b551L, 0x83d385c7L, 0x136c9856L,
+      0x646ba8c0L, 0xfd62f97aL, 0x8a65c9ecL, 0x14015c4fL, 0x63066cd9L,
+      0xfa0f3d63L, 0x8d080df5L, 0x3b6e20c8L, 0x4c69105eL, 0xd56041e4L,
+      0xa2677172L, 0x3c03e4d1L, 0x4b04d447L, 0xd20d85fdL, 0xa50ab56bL,
+      0x35b5a8faL, 0x42b2986cL, 0xdbbbc9d6L, 0xacbcf940L, 0x32d86ce3L,
+      0x45df5c75L, 0xdcd60dcfL, 0xabd13d59L, 0x26d930acL, 0x51de003aL,
+      0xc8d75180L, 0xbfd06116L, 0x21b4f4b5L, 0x56b3c423L, 0xcfba9599L,
+      0xb8bda50fL, 0x2802b89eL, 0x5f058808L, 0xc60cd9b2L, 0xb10be924L,
+      0x2f6f7c87L, 0x58684c11L, 0xc1611dabL, 0xb6662d3dL, 0x76dc4190L,
+      0x01db7106L, 0x98d220bcL, 0xefd5102aL, 0x71b18589L, 0x06b6b51fL,
+      0x9fbfe4a5L, 0xe8b8d433L, 0x7807c9a2L, 0x0f00f934L, 0x9609a88eL,
+      0xe10e9818L, 0x7f6a0dbbL, 0x086d3d2dL, 0x91646c97L, 0xe6635c01L,
+      0x6b6b51f4L, 0x1c6c6162L, 0x856530d8L, 0xf262004eL, 0x6c0695edL,
+      0x1b01a57bL, 0x8208f4c1L, 0xf50fc457L, 0x65b0d9c6L, 0x12b7e950L,
+      0x8bbeb8eaL, 0xfcb9887cL, 0x62dd1ddfL, 0x15da2d49L, 0x8cd37cf3L,
+      0xfbd44c65L, 0x4db26158L, 0x3ab551ceL, 0xa3bc0074L, 0xd4bb30e2L,
+      0x4adfa541L, 0x3dd895d7L, 0xa4d1c46dL, 0xd3d6f4fbL, 0x4369e96aL,
+      0x346ed9fcL, 0xad678846L, 0xda60b8d0L, 0x44042d73L, 0x33031de5L,
+      0xaa0a4c5fL, 0xdd0d7cc9L, 0x5005713cL, 0x270241aaL, 0xbe0b1010L,
+      0xc90c2086L, 0x5768b525L, 0x206f85b3L, 0xb966d409L, 0xce61e49fL,
+      0x5edef90eL, 0x29d9c998L, 0xb0d09822L, 0xc7d7a8b4L, 0x59b33d17L,
+      0x2eb40d81L, 0xb7bd5c3bL, 0xc0ba6cadL, 0xedb88320L, 0x9abfb3b6L,
+      0x03b6e20cL, 0x74b1d29aL, 0xead54739L, 0x9dd277afL, 0x04db2615L,
+      0x73dc1683L, 0xe3630b12L, 0x94643b84L, 0x0d6d6a3eL, 0x7a6a5aa8L,
+      0xe40ecf0bL, 0x9309ff9dL, 0x0a00ae27L, 0x7d079eb1L, 0xf00f9344L,
+      0x8708a3d2L, 0x1e01f268L, 0x6906c2feL, 0xf762575dL, 0x806567cbL,
+      0x196c3671L, 0x6e6b06e7L, 0xfed41b76L, 0x89d32be0L, 0x10da7a5aL,
+      0x67dd4accL, 0xf9b9df6fL, 0x8ebeeff9L, 0x17b7be43L, 0x60b08ed5L,
+      0xd6d6a3e8L, 0xa1d1937eL, 0x38d8c2c4L, 0x4fdff252L, 0xd1bb67f1L,
+      0xa6bc5767L, 0x3fb506ddL, 0x48b2364bL, 0xd80d2bdaL, 0xaf0a1b4cL,
+      0x36034af6L, 0x41047a60L, 0xdf60efc3L, 0xa867df55L, 0x316e8eefL,
+      0x4669be79L, 0xcb61b38cL, 0xbc66831aL, 0x256fd2a0L, 0x5268e236L,
+      0xcc0c7795L, 0xbb0b4703L, 0x220216b9L, 0x5505262fL, 0xc5ba3bbeL,
+      0xb2bd0b28L, 0x2bb45a92L, 0x5cb36a04L, 0xc2d7ffa7L, 0xb5d0cf31L,
+      0x2cd99e8bL, 0x5bdeae1dL, 0x9b64c2b0L, 0xec63f226L, 0x756aa39cL,
+      0x026d930aL, 0x9c0906a9L, 0xeb0e363fL, 0x72076785L, 0x05005713L,
+      0x95bf4a82L, 0xe2b87a14L, 0x7bb12baeL, 0x0cb61b38L, 0x92d28e9bL,
+      0xe5d5be0dL, 0x7cdcefb7L, 0x0bdbdf21L, 0x86d3d2d4L, 0xf1d4e242L,
+      0x68ddb3f8L, 0x1fda836eL, 0x81be16cdL, 0xf6b9265bL, 0x6fb077e1L,
+      0x18b74777L, 0x88085ae6L, 0xff0f6a70L, 0x66063bcaL, 0x11010b5cL,
+      0x8f659effL, 0xf862ae69L, 0x616bffd3L, 0x166ccf45L, 0xa00ae278L,
+      0xd70dd2eeL, 0x4e048354L, 0x3903b3c2L, 0xa7672661L, 0xd06016f7L,
+      0x4969474dL, 0x3e6e77dbL, 0xaed16a4aL, 0xd9d65adcL, 0x40df0b66L,
+      0x37d83bf0L, 0xa9bcae53L, 0xdebb9ec5L, 0x47b2cf7fL, 0x30b5ffe9L,
+      0xbdbdf21cL, 0xcabac28aL, 0x53b39330L, 0x24b4a3a6L, 0xbad03605L,
+      0xcdd70693L, 0x54de5729L, 0x23d967bfL, 0xb3667a2eL, 0xc4614ab8L,
+      0x5d681b02L, 0x2a6f2b94L, 0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL,
+      0x2d02ef8dL
+   };
+
+/* Return a 32-bit CRC of the contents of the buffer. */
+
+unsigned long crc32(const unsigned char *s, unsigned int len)
+{
+  unsigned int i;
+  unsigned long crc32val;
+  
+  crc32val = 0;
+  for (i = 0;  i < len;  i ++)
+    {
+      crc32val =
+	crc32_tab[(crc32val ^ s[i]) & 0xff] ^
+	  (crc32val >> 8);
     }
-    void *mem = malloc(sizeof(uintptr_t)+size);
-    assert(mem);
-    *(uintptr_t*)mem = size;
-    total_allocs++;
-    total_mem += size;
-    return (char*)mem+sizeof(uintptr_t);
+  return crc32val;
 }
 
-static void xfree(void *ptr) {
-    if (ptr) {
-        total_mem -= *(uintptr_t*)((char*)ptr-sizeof(uintptr_t));
-        free((char*)ptr-sizeof(uintptr_t));
-        total_allocs--;
-    }
+/*
+ * Hashing function for a string
+ */
+unsigned int hashmap_hash_int(hashmap_map * m, char* keystring){
+
+    unsigned long key = crc32((unsigned char*)(keystring), strlen(keystring));
+
+	/* Robert Jenkins' 32 bit Mix Function */
+	key += (key << 12);
+	key ^= (key >> 22);
+	key += (key << 4);
+	key ^= (key >> 9);
+	key += (key << 10);
+	key ^= (key >> 2);
+	key += (key << 7);
+	key ^= (key >> 12);
+
+	/* Knuth's Multiplicative Method */
+	key = (key >> 3) * 2654435761;
+
+	return key % m->table_size;
 }
 
-static void shuffle(void *array, size_t numels, size_t elsize) {
-    char tmp[elsize];
-    char *arr = array;
-    for (size_t i = 0; i < numels - 1; i++) {
-        int j = i + rand() / (RAND_MAX / (numels - i) + 1);
-        memcpy(tmp, arr + j * elsize, elsize);
-        memcpy(arr + j * elsize, arr + i * elsize, elsize);
-        memcpy(arr + i * elsize, tmp, elsize);
-    }
+/*
+ * Return the integer of the location in data
+ * to store the point to the item, or MAP_FULL.
+ */
+int hashmap_hash(map_t in, char* key){
+	int curr;
+	int i;
+
+	/* Cast the hashmap */
+	hashmap_map* m = (hashmap_map *) in;
+
+	/* If full, return immediately */
+	if(m->size >= (m->table_size/2)) return MAP_FULL;
+
+	/* Find the best index */
+	curr = hashmap_hash_int(m, key);
+
+	/* Linear probing */
+	for(i = 0; i< MAX_CHAIN_LENGTH; i++){
+		if(m->data[curr].in_use == 0)
+			return curr;
+
+		if(m->data[curr].in_use == 1 && (strcmp(m->data[curr].key,key)==0))
+			return curr;
+
+		curr = (curr + 1) % m->table_size;
+	}
+
+	return MAP_FULL;
 }
 
-static bool iter_ints(const void *item, void *udata) {
-    int *vals = *(int**)udata;
-    vals[*(int*)item] = 1;
-    return true;
+/*
+ * Doubles the size of the hashmap, and rehashes all the elements
+ */
+int hashmap_rehash(map_t in){
+	int i;
+	int old_size;
+	hashmap_element* curr;
+
+	/* Setup the new elements */
+	hashmap_map *m = (hashmap_map *) in;
+	hashmap_element* temp = (hashmap_element *)
+		calloc(2 * m->table_size, sizeof(hashmap_element));
+	if(!temp) return MAP_OMEM;
+
+	/* Update the array */
+	curr = m->data;
+	m->data = temp;
+
+	/* Update the size */
+	old_size = m->table_size;
+	m->table_size = 2 * m->table_size;
+	m->size = 0;
+
+	/* Rehash the elements */
+	for(i = 0; i < old_size; i++){
+        int status;
+
+        if (curr[i].in_use == 0)
+            continue;
+            
+		status = hashmap_put(m, curr[i].key, curr[i].data);
+		if (status != MAP_OK)
+			return status;
+	}
+
+	free(curr);
+
+	return MAP_OK;
 }
 
-static int compare_ints_udata(const void *a, const void *b, void *udata) {
-    return *(int*)a - *(int*)b;
+/*
+ * Add a pointer to the hashmap with some key
+ */
+int hashmap_put(map_t in, char* key, any_t value){
+	int index;
+	hashmap_map* m;
+
+	/* Cast the hashmap */
+	m = (hashmap_map *) in;
+
+	/* Find a place to put our value */
+	index = hashmap_hash(in, key);
+	while(index == MAP_FULL){
+		if (hashmap_rehash(in) == MAP_OMEM) {
+			return MAP_OMEM;
+		}
+		index = hashmap_hash(in, key);
+	}
+
+	/* Set the data */
+	m->data[index].data = value;
+	m->data[index].key = key;
+	m->data[index].in_use = 1;
+	m->size++; 
+
+	return MAP_OK;
 }
 
-static int compare_strs(const void *a, const void *b, void *udata) {
-    return strcmp(*(char**)a, *(char**)b);
-}
+/*
+ * Get your pointer out of the hashmap with a key
+ */
+int hashmap_get(map_t in, char* key, any_t *arg){
+	int curr;
+	int i;
+	hashmap_map* m;
 
-static uint64_t hash_int(const void *item, uint64_t seed0, uint64_t seed1) {
-    return hashmap_xxhash3(item, sizeof(int), seed0, seed1);
-    // return hashmap_sip(item, sizeof(int), seed0, seed1);
-    // return hashmap_murmur(item, sizeof(int), seed0, seed1);
-}
+	/* Cast the hashmap */
+	m = (hashmap_map *) in;
 
-static uint64_t hash_str(const void *item, uint64_t seed0, uint64_t seed1) {
-    return hashmap_xxhash3(*(char**)item, strlen(*(char**)item), seed0, seed1);
-    // return hashmap_sip(*(char**)item, strlen(*(char**)item), seed0, seed1);
-    // return hashmap_murmur(*(char**)item, strlen(*(char**)item), seed0, seed1);
-}
+	/* Find data location */
+	curr = hashmap_hash_int(m, key);
 
-static void free_str(void *item) {
-    xfree(*(char**)item);
-}
+	/* Linear probing, if necessary */
+	for(i = 0; i<MAX_CHAIN_LENGTH; i++){
 
-static void all(void) {
-    int seed = getenv("SEED")?atoi(getenv("SEED")):time(NULL);
-    int N = getenv("N")?atoi(getenv("N")):2000;
-    printf("seed=%d, count=%d, item_size=%zu\n", seed, N, sizeof(int));
-    srand(seed);
-
-    rand_alloc_fail = true;
-
-    // test sip and murmur hashes
-    assert(hashmap_sip("hello", 5, 1, 2) == 2957200328589801622);
-    assert(hashmap_murmur("hello", 5, 1, 2) == 1682575153221130884);
-    assert(hashmap_xxhash3("hello", 5, 1, 2) == 2584346877953614258);
-
-    int *vals;
-    while (!(vals = xmalloc(N * sizeof(int)))) {}
-    for (int i = 0; i < N; i++) {
-        vals[i] = i;
-    }
-
-    struct hashmap *map;
-
-    while (!(map = hashmap_new(sizeof(int), 0, seed, seed, 
-                               hash_int, compare_ints_udata, NULL, NULL))) {}
-    shuffle(vals, N, sizeof(int));
-    for (int i = 0; i < N; i++) {
-        // // printf("== %d ==\n", vals[i]);
-        assert(map->count == (size_t)i);
-        assert(map->count == hashmap_count(map));
-        assert(map->count == deepcount(map));
-        const int *v;
-        assert(!hashmap_get(map, &vals[i]));
-        assert(!hashmap_delete(map, &vals[i]));
-        while (true) {
-            assert(!hashmap_set(map, &vals[i]));
-            if (!hashmap_oom(map)) {
-                break;
+        int in_use = m->data[curr].in_use;
+        if (in_use == 1){
+            if (strcmp(m->data[curr].key,key)==0){
+                *arg = (m->data[curr].data);
+                return MAP_OK;
             }
-        }
-        
-        for (int j = 0; j < i; j++) {
-            v = hashmap_get(map, &vals[j]);
-            assert(v && *v == vals[j]);
-        }
-        while (true) {
-            v = hashmap_set(map, &vals[i]);
-            if (!v) {
-                assert(hashmap_oom(map));
-                continue;
-            } else {
-                assert(!hashmap_oom(map));
-                assert(v && *v == vals[i]);
-                break;
-            }
-        }
-        v = hashmap_get(map, &vals[i]);
-        assert(v && *v == vals[i]);
-        v = hashmap_delete(map, &vals[i]);
-        assert(v && *v == vals[i]);
-        assert(!hashmap_get(map, &vals[i]));
-        assert(!hashmap_delete(map, &vals[i]));
-        assert(!hashmap_set(map, &vals[i]));
-        assert(map->count == (size_t)(i+1));
-        assert(map->count == hashmap_count(map));
-        assert(map->count == deepcount(map));
-    }
+		}
 
-    int *vals2;
-    while (!(vals2 = xmalloc(N * sizeof(int)))) {}
-    memset(vals2, 0, N * sizeof(int));
-    assert(hashmap_scan(map, iter_ints, &vals2));
+		curr = (curr + 1) % m->table_size;
+	}
 
-    // Test hashmap_iter. This does the same as hashmap_scan above.
-    size_t iter = 0;
-    void *iter_val;
-    while (hashmap_iter (map, &iter, &iter_val)) {
-        assert (iter_ints(iter_val, &vals2));
-    }
-    for (int i = 0; i < N; i++) {
-        assert(vals2[i] == 1);
-    }
-    xfree(vals2);
+	*arg = NULL;
 
-    shuffle(vals, N, sizeof(int));
-    for (int i = 0; i < N; i++) {
-        const int *v;
-        v = hashmap_delete(map, &vals[i]);
-        assert(v && *v == vals[i]);
-        assert(!hashmap_get(map, &vals[i]));
-        assert(map->count == (size_t)(N-i-1));
-        assert(map->count == hashmap_count(map));
-        assert(map->count == deepcount(map));
-        for (int j = N-1; j > i; j--) {
-            v = hashmap_get(map, &vals[j]);
-            assert(v && *v == vals[j]);
-        }
-    }
-
-    for (int i = 0; i < N; i++) {
-        while (true) {
-            assert(!hashmap_set(map, &vals[i]));
-            if (!hashmap_oom(map)) {
-                break;
-            }
-        }
-    }
-
-    assert(map->count != 0);
-    size_t prev_cap = map->cap;
-    hashmap_clear(map, true);
-    assert(prev_cap < map->cap);
-    assert(map->count == 0);
-
-
-    for (int i = 0; i < N; i++) {
-        while (true) {
-            assert(!hashmap_set(map, &vals[i]));
-            if (!hashmap_oom(map)) {
-                break;
-            }
-        }
-    }
-
-    prev_cap = map->cap;
-    hashmap_clear(map, false);
-    assert(prev_cap == map->cap);
-
-    hashmap_free(map);
-
-    xfree(vals);
-
-
-    while (!(map = hashmap_new(sizeof(char*), 0, seed, seed,
-                               hash_str, compare_strs, free_str, NULL)));
-
-    for (int i = 0; i < N; i++) {
-        char *str;
-        while (!(str = xmalloc(16)));
-        snprintf(str, 16, "s%i", i);
-        while(!hashmap_set(map, &str));
-    }
-
-    hashmap_clear(map, false);
-    assert(hashmap_count(map) == 0);
-
-    for (int i = 0; i < N; i++) {
-        char *str;
-        while (!(str = xmalloc(16)));
-        snprintf(str, 16, "s%i", i);
-        while(!hashmap_set(map, &str));
-    }
-
-    hashmap_free(map);
-
-    if (total_allocs != 0) {
-        fprintf(stderr, "total_allocs: expected 0, got %lu\n", total_allocs);
-        exit(1);
-    }
+	/* Not found */
+	return MAP_MISSING;
 }
 
-#define bench(name, N, code) {{ \
-    if (strlen(name) > 0) { \
-        printf("%-14s ", name); \
-    } \
-    size_t tmem = total_mem; \
-    size_t tallocs = total_allocs; \
-    uint64_t bytes = 0; \
-    clock_t begin = clock(); \
-    for (int i = 0; i < N; i++) { \
-        (code); \
-    } \
-    clock_t end = clock(); \
-    double elapsed_secs = (double)(end - begin) / CLOCKS_PER_SEC; \
-    double bytes_sec = (double)bytes/elapsed_secs; \
-    printf("%d ops in %.3f secs, %.0f ns/op, %.0f op/sec", \
-        N, elapsed_secs, \
-        elapsed_secs/(double)N*1e9, \
-        (double)N/elapsed_secs \
-    ); \
-    if (bytes > 0) { \
-        printf(", %.1f GB/sec", bytes_sec/1024/1024/1024); \
-    } \
-    if (total_mem > tmem) { \
-        size_t used_mem = total_mem-tmem; \
-        printf(", %.2f bytes/op", (double)used_mem/N); \
-    } \
-    if (total_allocs > tallocs) { \
-        size_t used_allocs = total_allocs-tallocs; \
-        printf(", %.2f allocs/op", (double)used_allocs/N); \
-    } \
-    printf("\n"); \
-}}
+/*
+ * Iterate the function parameter over each element in the hashmap.  The
+ * additional any_t argument is passed to the function as its first
+ * argument and the hashmap element is the second.
+ */
+int hashmap_iterate(map_t in, PFany f, any_t item) {
+	int i;
 
-static void benchmarks(void) {
-    int seed = getenv("SEED")?atoi(getenv("SEED")):time(NULL);
-    int N = getenv("N")?atoi(getenv("N")):5000000;
-    printf("seed=%d, count=%d, item_size=%zu\n", seed, N, sizeof(int));
-    srand(seed);
+	/* Cast the hashmap */
+	hashmap_map* m = (hashmap_map*) in;
 
+	/* On empty hashmap, return immediately */
+	if (hashmap_length(m) <= 0)
+		return MAP_MISSING;	
 
-    int *vals = xmalloc(N * sizeof(int));
-    for (int i = 0; i < N; i++) {
-        vals[i] = i;
-    }
+	/* Linear probing */
+	for(i = 0; i< m->table_size; i++)
+		if(m->data[i].in_use != 0) {
+			any_t data = (any_t) (m->data[i].data);
+			int status = f(item, data);
+			if (status != MAP_OK) {
+				return status;
+			}
+		}
 
-    shuffle(vals, N, sizeof(int));
-
-    struct hashmap *map;
-    shuffle(vals, N, sizeof(int));
-
-    map = hashmap_new(sizeof(int), 0, seed, seed, hash_int, compare_ints_udata, 
-                      NULL, NULL);
-    bench("set", N, {
-        const int *v = hashmap_set(map, &vals[i]);
-        assert(!v);
-    })
-    shuffle(vals, N, sizeof(int));
-    bench("get", N, {
-        const int *v = hashmap_get(map, &vals[i]);
-        assert(v && *v == vals[i]);
-    })
-    shuffle(vals, N, sizeof(int));
-    bench("delete", N, {
-        const int *v = hashmap_delete(map, &vals[i]);
-        assert(v && *v == vals[i]);
-    })
-    hashmap_free(map);
-
-    map = hashmap_new(sizeof(int), N, seed, seed, hash_int, compare_ints_udata, 
-                      NULL, NULL);
-    bench("set (cap)", N, {
-        const int *v = hashmap_set(map, &vals[i]);
-        assert(!v);
-    })
-    shuffle(vals, N, sizeof(int));
-    bench("get (cap)", N, {
-        const int *v = hashmap_get(map, &vals[i]);
-        assert(v && *v == vals[i]);
-    })
-    shuffle(vals, N, sizeof(int));
-    bench("delete (cap)" , N, {
-        const int *v = hashmap_delete(map, &vals[i]);
-        assert(v && *v == vals[i]);
-    })
-
-    hashmap_free(map);
-
-    
-    xfree(vals);
-
-    if (total_allocs != 0) {
-        fprintf(stderr, "total_allocs: expected 0, got %lu\n", total_allocs);
-        exit(1);
-    }
+    return MAP_OK;
 }
 
-int main(void) {
-    hashmap_set_allocator(xmalloc, xfree);
+/*
+ * Remove an element with that key from the map
+ */
+int hashmap_remove(map_t in, char* key){
+	int i;
+	int curr;
+	hashmap_map* m;
 
-    if (getenv("BENCH")) {
-        printf("Running hashmap.c benchmarks...\n");
-        benchmarks();
-    } else {
-        printf("Running hashmap.c tests...\n");
-        all();
-        printf("PASSED\n");
-    }
+	/* Cast the hashmap */
+	m = (hashmap_map *) in;
+
+	/* Find key */
+	curr = hashmap_hash_int(m, key);
+
+	/* Linear probing, if necessary */
+	for(i = 0; i<MAX_CHAIN_LENGTH; i++){
+
+        int in_use = m->data[curr].in_use;
+        if (in_use == 1){
+            if (strcmp(m->data[curr].key,key)==0){
+                /* Blank out the fields */
+                m->data[curr].in_use = 0;
+                m->data[curr].data = NULL;
+                m->data[curr].key = NULL;
+
+                /* Reduce the size */
+                m->size--;
+                return MAP_OK;
+            }
+		}
+		curr = (curr + 1) % m->table_size;
+	}
+
+	/* Data not found */
+	return MAP_MISSING;
 }
 
+/* Deallocate the hashmap */
+void hashmap_free(map_t in){
+	hashmap_map* m = (hashmap_map*) in;
+	free(m->data);
+	free(m);
+}
 
-#endif
+/* Return the length of the hashmap */
+int hashmap_length(map_t in){
+	hashmap_map* m = (hashmap_map *) in;
+	if(m != NULL) return m->size;
+	else return 0;
+}

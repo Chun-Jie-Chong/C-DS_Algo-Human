@@ -1,64 +1,83 @@
-// https://github.com/tidwall/hashmap.c/tree/master
+// https://github.com/petewarden/c_hashmap/blob/master/hashmap.h
 
-// Copyright 2020 Joshua J Baker. All rights reserved.
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file.
+/*
+ * Generic hashmap manipulation functions
+ *
+ * Originally by Elliot C Back - http://elliottback.com/wp/hashmap-implementation-in-c/
+ *
+ * Modified by Pete Warden to fix a serious performance problem, support strings as keys
+ * and removed thread synchronization - http://petewarden.typepad.com
+ */
+#ifndef __HASHMAP_H__
+#define __HASHMAP_H__
 
-#ifndef HASHMAP_H
-#define HASHMAP_H
+#define MAP_MISSING -3  /* No such element */
+#define MAP_FULL -2 	/* Hashmap is full */
+#define MAP_OMEM -1 	/* Out of Memory */
+#define MAP_OK 0 	/* OK */
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+/*
+ * any_t is a pointer.  This allows you to put arbitrary structures in
+ * the hashmap.
+ */
+typedef void *any_t;
 
-#if defined(__cplusplus)
-extern "C" {
-#endif  // __cplusplus
+/*
+ * PFany is a pointer to a function that can take two any_t arguments
+ * and return an integer. Returns status code..
+ */
+typedef int (*PFany)(any_t, any_t);
 
-struct hashmap;
+/*
+ * map_t is a pointer to an internally maintained data structure.
+ * Clients of this package do not need to know how hashmaps are
+ * represented.  They see and manipulate only map_t's.
+ */
+typedef any_t map_t;
 
-struct hashmap *hashmap_new(size_t elsize, size_t cap, uint64_t seed0, 
-    uint64_t seed1, 
-    uint64_t (*hash)(const void *item, uint64_t seed0, uint64_t seed1),
-    int (*compare)(const void *a, const void *b, void *udata),
-    void (*elfree)(void *item),
-    void *udata);
+/*
+ * Return an empty hashmap. Returns NULL if empty.
+*/
+extern map_t hashmap_new();
 
-struct hashmap *hashmap_new_with_allocator(void *(*malloc)(size_t), 
-    void *(*realloc)(void *, size_t), void (*free)(void*), size_t elsize, 
-    size_t cap, uint64_t seed0, uint64_t seed1,
-    uint64_t (*hash)(const void *item, uint64_t seed0, uint64_t seed1),
-    int (*compare)(const void *a, const void *b, void *udata),
-    void (*elfree)(void *item),
-    void *udata);
+/*
+ * Iteratively call f with argument (item, data) for
+ * each element data in the hashmap. The function must
+ * return a map status code. If it returns anything other
+ * than MAP_OK the traversal is terminated. f must
+ * not reenter any hashmap functions, or deadlock may arise.
+ */
+extern int hashmap_iterate(map_t in, PFany f, any_t item);
 
-void hashmap_free(struct hashmap *map);
-void hashmap_clear(struct hashmap *map, bool update_cap);
-size_t hashmap_count(struct hashmap *map);
-bool hashmap_oom(struct hashmap *map);
-const void *hashmap_get(struct hashmap *map, const void *item);
-const void *hashmap_set(struct hashmap *map, const void *item);
-const void *hashmap_delete(struct hashmap *map, const void *item);
-const void *hashmap_probe(struct hashmap *map, uint64_t position);
-bool hashmap_scan(struct hashmap *map, bool (*iter)(const void *item, void *udata), void *udata);
-bool hashmap_iter(struct hashmap *map, size_t *i, void **item);
+/*
+ * Add an element to the hashmap. Return MAP_OK or MAP_OMEM.
+ */
+extern int hashmap_put(map_t in, char* key, any_t value);
 
-uint64_t hashmap_sip(const void *data, size_t len, uint64_t seed0, uint64_t seed1);
-uint64_t hashmap_murmur(const void *data, size_t len, uint64_t seed0, uint64_t seed1);
-uint64_t hashmap_xxhash3(const void *data, size_t len, uint64_t seed0, uint64_t seed1);
+/*
+ * Get an element from the hashmap. Return MAP_OK or MAP_MISSING.
+ */
+extern int hashmap_get(map_t in, char* key, any_t *arg);
 
-const void *hashmap_get_with_hash(struct hashmap *map, const void *key, uint64_t hash);
-const void *hashmap_delete_with_hash(struct hashmap *map, const void *key, uint64_t hash);
-const void *hashmap_set_with_hash(struct hashmap *map, const void *item, uint64_t hash);
-void hashmap_set_grow_by_power(struct hashmap *map, size_t power);
-void hashmap_set_load_factor(struct hashmap *map, double load_factor);
+/*
+ * Remove an element from the hashmap. Return MAP_OK or MAP_MISSING.
+ */
+extern int hashmap_remove(map_t in, char* key);
 
+/*
+ * Get any element. Return MAP_OK or MAP_MISSING.
+ * remove - should the element be removed from the hashmap
+ */
+extern int hashmap_get_one(map_t in, any_t *arg, int remove);
 
-// DEPRECATED: use `hashmap_new_with_allocator`
-void hashmap_set_allocator(void *(*malloc)(size_t), void (*free)(void*));
+/*
+ * Free the hashmap
+ */
+extern void hashmap_free(map_t in);
 
-#if defined(__cplusplus)
-}
-#endif  // __cplusplus
+/*
+ * Get the current size of a hashmap
+ */
+extern int hashmap_length(map_t in);
 
-#endif  // HASHMAP_H
+#endif
