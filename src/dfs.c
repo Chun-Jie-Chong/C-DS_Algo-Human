@@ -31,53 +31,53 @@ bool dfs(Graph g, int nV, Vertex src, Vertex dest)
     return dfsPathCheck(g, nV, src, dest);
 }
 
-// int main(void)
-// {
-//     int V = 6;
-//     Graph g = newGraph(V);
+int main(void)
+{
+    int V = 6;
+    Graph g = newGraph(V);
 
-//     Edge e;
-//     e.v = 0;
-//     e.w = 1;
-//     insertEdge(g, e);
-//     e.v = 0;
-//     e.w = 4;
-//     insertEdge(g, e);
-//     e.v = 0;
-//     e.w = 5;
-//     insertEdge(g, e);
-//     e.v = 5;
-//     e.w = 4;
-//     insertEdge(g, e);
-//     e.v = 4;
-//     e.w = 2;
-//     insertEdge(g, e);
-//     e.v = 4;
-//     e.w = 3;
-//     insertEdge(g, e);
-//     e.v = 5;
-//     e.w = 3;
-//     insertEdge(g, e);
-//     e.v = 1;
-//     e.w = 2;
-//     insertEdge(g, e);
-//     e.v = 3;
-//     e.w = 2;
-//     insertEdge(g, e);
+    Edge e;
+    e.v = 0;
+    e.w = 1;
+    insertEdge(g, e);
+    e.v = 0;
+    e.w = 4;
+    insertEdge(g, e);
+    e.v = 0;
+    e.w = 5;
+    insertEdge(g, e);
+    e.v = 5;
+    e.w = 4;
+    insertEdge(g, e);
+    e.v = 4;
+    e.w = 2;
+    insertEdge(g, e);
+    e.v = 4;
+    e.w = 3;
+    insertEdge(g, e);
+    e.v = 5;
+    e.w = 3;
+    insertEdge(g, e);
+    e.v = 1;
+    e.w = 2;
+    insertEdge(g, e);
+    e.v = 3;
+    e.w = 2;
+    insertEdge(g, e);
 
-//     int src = 0, dest = 5;
-//     if (dfs(g, V, src, dest))
-//     {
-//         Vertex v = dest;
-//         while (v != src)
-//         {
-//             printf("%d - ", v);
-//             v = visited[v];
-//         }
-//         printf("%d\n", src);
-//     }
-//     return 0;
-// }
+    int src = 0, dest = 5;
+    if (dfs(g, V, src, dest))
+    {
+        Vertex v = dest;
+        while (v != src)
+        {
+            printf("%d - ", v);
+            v = visited[v];
+        }
+        printf("%d\n", src);
+    }
+    return 0;
+}
 
 // By
 //  .----------------.  .----------------.  .----------------.

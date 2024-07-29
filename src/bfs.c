@@ -121,68 +121,68 @@ bool bfs(Graph g, int nV, Vertex src, Vertex dest)
     return false;
 }
 
-// int main(void)
-// {
-//     int V = 10;
-//     Graph g = newGraph(V);
+int main(void)
+{
+    int V = 10;
+    Graph g = newGraph(V);
 
-//     Edge e;
-//     e.v = 0;
-//     e.w = 1;
-//     insertEdge(g, e);
-//     e.v = 0;
-//     e.w = 2;
-//     insertEdge(g, e);
-//     e.v = 0;
-//     e.w = 5;
-//     insertEdge(g, e);
-//     e.v = 1;
-//     e.w = 5;
-//     insertEdge(g, e);
-//     e.v = 2;
-//     e.w = 3;
-//     insertEdge(g, e);
-//     e.v = 3;
-//     e.w = 4;
-//     insertEdge(g, e);
-//     e.v = 3;
-//     e.w = 5;
-//     insertEdge(g, e);
-//     e.v = 3;
-//     e.w = 8;
-//     insertEdge(g, e);
-//     e.v = 4;
-//     e.w = 5;
-//     insertEdge(g, e);
-//     e.v = 4;
-//     e.w = 7;
-//     insertEdge(g, e);
-//     e.v = 4;
-//     e.w = 8;
-//     insertEdge(g, e);
-//     e.v = 5;
-//     e.w = 6;
-//     insertEdge(g, e);
-//     e.v = 7;
-//     e.w = 8;
-//     insertEdge(g, e);
-//     e.v = 7;
-//     e.w = 9;
-//     insertEdge(g, e);
-//     e.v = 8;
-//     e.w = 9;
-//     insertEdge(g, e);
+    Edge e;
+    e.v = 0;
+    e.w = 1;
+    insertEdge(g, e);
+    e.v = 0;
+    e.w = 2;
+    insertEdge(g, e);
+    e.v = 0;
+    e.w = 5;
+    insertEdge(g, e);
+    e.v = 1;
+    e.w = 5;
+    insertEdge(g, e);
+    e.v = 2;
+    e.w = 3;
+    insertEdge(g, e);
+    e.v = 3;
+    e.w = 4;
+    insertEdge(g, e);
+    e.v = 3;
+    e.w = 5;
+    insertEdge(g, e);
+    e.v = 3;
+    e.w = 8;
+    insertEdge(g, e);
+    e.v = 4;
+    e.w = 5;
+    insertEdge(g, e);
+    e.v = 4;
+    e.w = 7;
+    insertEdge(g, e);
+    e.v = 4;
+    e.w = 8;
+    insertEdge(g, e);
+    e.v = 5;
+    e.w = 6;
+    insertEdge(g, e);
+    e.v = 7;
+    e.w = 8;
+    insertEdge(g, e);
+    e.v = 7;
+    e.w = 9;
+    insertEdge(g, e);
+    e.v = 8;
+    e.w = 9;
+    insertEdge(g, e);
 
-//     int src = 0, dest = 6;
-//     if (bfs(g, V, src, dest))
-//     {
-//         Vertex v = dest;
-//         while (v != src)
-//         {
-//             printf("%d - ", v);
-//             v = visited[v];
-//         }
-//         printf("%d\n", src);
-//     }
-//     return 0;
-// }
+    int src = 0, dest = 6;
+    if (bfs(g, V, src, dest))
+    {
+        Vertex v = dest;
+        while (v != src)
+        {
+            printf("%d - ", v);
+            v = visited[v];
+        }
+        printf("%d\n", src);
+    }
+    return 0;
+}

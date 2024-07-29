@@ -78,13 +78,13 @@ void example();
  * @brief   Main function
  * @returns 0   on exit
  */
-// int main()
-// {
-//     // examples for better understanding
-//     example();
-//     // code here
-//     return 0;
-// }
+int main()
+{
+    // examples for better understanding
+    example();
+    // code here
+    return 0;
+}
 
 /**
  * @brief   Create list function, a new list containing one node will be created

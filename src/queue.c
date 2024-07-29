@@ -10,13 +10,13 @@ int count;
 ////////////////////////////////////////////////////////////////////////////////
 // MAIN ENTRY POINT
 
-// int main(int argc, char const *argv[])
-// {
-//     create();
-//     enque(5);
+int main(int argc, char const *argv[])
+{
+    create();
+    enque(5);
 
-//     return 0;
-// }
+    return 0;
+}
 
 void create()
 {
