@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct GraphRep
 {
@@ -93,6 +94,45 @@ void freeGraph(Graph g)
     free(g->edges);
     free(g);
 }
+
+// int main(int argc, char *argv[]) {
+//     if (argc < 2) {
+//         fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+//         return EXIT_FAILURE;
+//     }
+
+//     FILE *file = fopen(argv[1], "r");
+//     if (!file) {
+//         perror("Could not open input file");
+//         return EXIT_FAILURE;
+//     }
+
+//     int V;
+//     if (fscanf(file, "%d", &V) == 1) { // Read number of vertices
+//         Graph g = newGraph(V);
+
+//         char command[10];
+//         while (fscanf(file, "%s", command) != EOF) {
+//             Edge e;
+//             if (fscanf(file, "%d %d", &e.v, &e.w) == 2) { // Read edge vertices
+
+//                 if (strcmp(command, "insert") == 0) {
+//                     insertEdge(g, e);
+//                 } else if (strcmp(command, "remove") == 0) {
+//                     removeEdge(g, e);
+//                 } else {
+//                     fprintf(stderr, "Unknown command: %s\n", command);
+//                 }
+//             }
+//         }
+//         printf("Graph adjacency matrix:\n");
+//         showGraph(g);
+//         freeGraph(g);
+//     }
+//     fclose(file);
+
+//     return EXIT_SUCCESS;
+// }
 
 // By
 //  .----------------.  .----------------.  .----------------.

@@ -1,0 +1,15 @@
+insert H0
+insert 20
+insert 30
+ins
+insert 25
+search 3
+inert 40
+insert 50
+insert 25
+search 3
+insert0
+delete 10
+search 10
+seGrch 50
+delete 25

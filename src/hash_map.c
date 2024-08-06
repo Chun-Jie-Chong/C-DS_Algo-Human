@@ -397,3 +397,47 @@ int hashmap_length(map_t in){
 	if(m != NULL) return m->size;
 	else return 0;
 }
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open file");
+        return 1;
+    }
+
+    map_t map = hashmap_new();
+    char command[10];
+    char key[100];
+    int value;
+
+    while (fscanf(file, "%s", command) != EOF) {
+        if (strcmp(command, "insert") == 0) {
+            if (fscanf(file, "%s %d", key, &value) == 2) {
+				hashmap_put(map, key, &value);
+            }
+        } else if (strcmp(command, "lookup") == 0) {
+            if (fscanf(file, "%s", key) == 1) {
+                if (hashmap_get(map, key, (void**)&value) == MAP_OK) {
+                    printf("%s: %d\n", key, value);
+                } else {
+                    printf("%s not found\n", key);
+                }
+            }
+        } else if (strcmp(command, "delete") == 0) {
+            if (fscanf(file, "%s", key) == 1) {
+                hashmap_remove(map, key);
+            }
+        } else {
+            fprintf(stderr, "Unknown command: %s\n", command);
+        }
+    }
+
+    fclose(file);
+    hashmap_free(map);
+    return 0;
+}

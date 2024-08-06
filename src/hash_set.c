@@ -1,7 +1,7 @@
 // The Algorithms
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <string.h>
 #include "hash_set.h"
 
 extern hash_set_t *init_hash_set()
@@ -99,4 +99,44 @@ void resize(hash_set_t *set)
     void **new_values =
         (void **)realloc(set->values, set->capacity * sizeof(void **));
     set->values = new_values;
+}
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open input file");
+        return 1;
+    }
+
+    hash_set_t* set = init_hash_set();
+    char operation[10];
+    int key;
+    while (fscanf(file, "%s %d", operation, &key) == 2) {
+        if (strcmp(operation, "add") == 0) {
+            add(set, &key);
+            printf("Added %d\n", key);
+        } else if (strcmp(operation, "remove") == 0) {
+            delete(set, &key);
+            printf("Removed %d\n", key);
+        } else if (strcmp(operation, "contains") == 0) {
+            int result = contains(set, &key);
+            if (result == 1) {
+                printf("Contains %d: %d\n", key, result);
+            } else {
+                printf("Does not contain %d\n", key);
+            }
+        } else {
+            fprintf(stderr, "Unknown operation: %s\n", operation);
+        }
+    }
+    
+    fclose(file);
+    
+    // freeHashSet(set);
+    
+    return 0;
 }

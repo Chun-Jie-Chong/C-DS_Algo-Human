@@ -1,0 +1,12 @@
+insert 50
+insert 30 *0
+60
+insert 80
+fifd 30
+delete 30
+fit 60
+insert 80
+find 30
+delete 30
+find 30
+find 50

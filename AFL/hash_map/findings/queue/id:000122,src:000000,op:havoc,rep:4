@@ -1,0 +1,12 @@
+insert key3 300
+inse_t key4 400
+lookup 
+inse_t key4 400
+lookup key3
+lookup kookup key3
+lookup key5
+0
+lookup ey5
+0
+lookup ke
+lookup key3

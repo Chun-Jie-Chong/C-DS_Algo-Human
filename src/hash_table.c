@@ -24,6 +24,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "hash_table.h"
 
@@ -517,4 +518,68 @@ HashTablePair hash_table_iter_next(HashTableIterator *iterator)
 	}
 
 	return pair;
+}
+
+unsigned int string_hash(void *string)
+{
+	/* This is the djb2 string hash function */
+
+	unsigned int result = 5381;
+	unsigned char *p;
+
+	p = (unsigned char *) string;
+
+	while (*p != '\0') {
+		result = (result << 5) + result + *p;
+		++p;
+	}
+
+	return result;
+}
+
+int string_equal(void *string1, void *string2)
+{
+	return strcmp((char *) string1, (char *) string2) == 0;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open file");
+        return EXIT_FAILURE;
+    }
+
+    HashTable *hashTable = hash_table_new(string_hash, string_equal);
+    char operation[10];
+    char key[50];
+    char value[50];
+
+    while (fscanf(file, "%s", operation) != EOF) {
+        if (strcmp(operation, "insert") == 0) {
+            if (fscanf(file, "%s %s", key, value) ==2) {
+				hash_table_insert(hashTable, key, value);
+            }
+        } else if (strcmp(operation, "search") == 0) {
+            if (fscanf(file, "%s", key) ==1) {
+				if (hash_table_lookup(hashTable, key) == HASH_TABLE_NULL) {
+					printf("Not found\n");
+				} else {
+					printf("Found: %s\n", key);
+				}
+            }
+        } else if (strcmp(operation, "delete") == 0) {
+            if (fscanf(file, "%s", key) == 1) {
+				hash_table_remove(hashTable, key);
+            }
+        }
+    }
+
+    fclose(file);
+    hash_table_free(hashTable);
+    return EXIT_SUCCESS;
 }

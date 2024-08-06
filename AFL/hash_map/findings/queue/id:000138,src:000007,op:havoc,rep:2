@@ -1,0 +1,8 @@
+insert key7 300
+insert key4 400
+lookup key3
+lookup key5
+delsert key4 400
+lookup key3
+loede key3
+lookup key3

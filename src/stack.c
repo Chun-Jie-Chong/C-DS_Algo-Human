@@ -125,3 +125,37 @@ void *top()
     /* offset address points to the top element */
     return array[offset];
 }
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    FILE *file = fopen(argv[1], "rb");
+    if (!file) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    initStack();
+
+    int action, value;
+    while (fscanf(file, "%d %d", &action, &value) != EOF) {
+        switch (action) {
+            case 0: // Push
+                push(&value);
+                break;
+            case 1: // Pop
+                if (!isEmpty()) {
+                    pop();
+                }
+                break;
+            default:
+                printf("Unknown action: %d\n", action);
+        }
+    }
+
+    fclose(file);
+    return 0;
+}

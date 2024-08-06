@@ -1,0 +1,15 @@
+insert 0 10
+insert 1  20
+insert 2 30
+delete 20
+insert 2 30
+de 1
+t 0 10
+insert 1  20
+insert 2 3insert 1 40
+dele0
+insert 2 30
+delete 20
+
+delete 20
+insertte 1

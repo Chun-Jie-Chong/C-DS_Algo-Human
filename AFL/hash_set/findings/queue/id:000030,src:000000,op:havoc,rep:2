@@ -1,0 +1,7 @@
+add 5
+add 10
+add 15
+contains 1remomove 10
+cond 15
+contains 1remomove 10
+contains 1

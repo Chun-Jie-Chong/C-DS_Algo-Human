@@ -1,0 +1,12 @@
+t 60
+insert 80
+find 30
+det 70
+insert 20
+ 80@ 30
+delete 30
+fit 40
+insert 60
+insert 80
+find 30
+delete 50

@@ -1,0 +1,8 @@
+insert name John Doe
+insert occupation Sare r
+insert languagu C
+search name
+search occupation
+search lane
+delete name
+search nam

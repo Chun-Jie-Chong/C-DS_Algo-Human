@@ -1,0 +1,12 @@
+insert 50in 30
+insert 70
+insert 20
+insert 40
+insert 60
+insert 80
+fd 30
+delete 30
+fiind 30
+delete 30
+find 30
+find 50

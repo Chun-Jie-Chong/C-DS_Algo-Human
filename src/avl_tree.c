@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct AVLnode
 {
@@ -273,150 +274,199 @@ void printPostOrder(avlNode *node)
     printf("  %d  ", (node->key));
 }
 
-int main()
-{
-    int choice;
-    int flag = 1;
-    int insertNum;
-    int queryNum;
+// int main()
+// {
+//     int choice;
+//     int flag = 1;
+//     int insertNum;
+//     int queryNum;
 
-    avlNode *root = NULL;
-    avlNode *tempNode;
+//     avlNode *root = NULL;
+//     avlNode *tempNode;
 
-    while (flag == 1)
-    {
-        printf("\n\nEnter the Step to Run : \n");
+//     while (flag == 1)
+//     {
+//         printf("\n\nEnter the Step to Run : \n");
 
-        printf("\t1: Insert a node into AVL tree\n");
-        printf("\t2: Delete a node in AVL tree\n");
-        printf("\t3: Search a node into AVL tree\n");
-        printf("\t4: printPreOrder (Ro L R) Tree\n");
-        printf("\t5: printInOrder (L Ro R) Tree\n");
-        printf("\t6: printPostOrder (L R Ro) Tree\n");
-        printf("\t7: printAVL Tree\n");
+//         printf("\t1: Insert a node into AVL tree\n");
+//         printf("\t2: Delete a node in AVL tree\n");
+//         printf("\t3: Search a node into AVL tree\n");
+//         printf("\t4: printPreOrder (Ro L R) Tree\n");
+//         printf("\t5: printInOrder (L Ro R) Tree\n");
+//         printf("\t6: printPostOrder (L R Ro) Tree\n");
+//         printf("\t7: printAVL Tree\n");
 
-        printf("\t0: EXIT\n");
-        scanf("%d", &choice);
+//         printf("\t0: EXIT\n");
+//         scanf("%d", &choice);
 
-        switch (choice)
-        {
-        case 0:
-        {
-            flag = 0;
-            printf("\n\t\tExiting, Thank You !!\n");
-            break;
-        }
+//         switch (choice)
+//         {
+//         case 0:
+//         {
+//             flag = 0;
+//             printf("\n\t\tExiting, Thank You !!\n");
+//             break;
+//         }
 
-        case 1:
-        {
-            printf("\n\tEnter the Number to insert: ");
-            scanf("%d", &insertNum);
+//         case 1:
+//         {
+//             printf("\n\tEnter the Number to insert: ");
+//             scanf("%d", &insertNum);
 
-            tempNode = findNode(root, insertNum);
+//             tempNode = findNode(root, insertNum);
 
-            if (tempNode != NULL)
-                printf("\n\t %d Already exists in the tree\n", insertNum);
-            else
-            {
-                printf("\n\tPrinting AVL Tree\n");
-                printAVL(root, 1);
-                printf("\n");
+//             if (tempNode != NULL)
+//                 printf("\n\t %d Already exists in the tree\n", insertNum);
+//             else
+//             {
+//                 printf("\n\tPrinting AVL Tree\n");
+//                 printAVL(root, 1);
+//                 printf("\n");
 
-                root = insert(root, insertNum);
-                printf("\n\tPrinting AVL Tree\n");
-                printAVL(root, 1);
-                printf("\n");
+//                 root = insert(root, insertNum);
+//                 printf("\n\tPrinting AVL Tree\n");
+//                 printAVL(root, 1);
+//                 printf("\n");
+//             }
+
+//             break;
+//         }
+
+//         case 2:
+//         {
+//             printf("\n\tEnter the Number to Delete: ");
+//             scanf("%d", &queryNum);
+
+//             tempNode = findNode(root, queryNum);
+
+//             if (tempNode == NULL)
+//                 printf("\n\t %d Does not exist in the tree\n", queryNum);
+//             else
+//             {
+//                 printf("\n\tPrinting AVL Tree\n");
+//                 printAVL(root, 1);
+//                 printf("\n");
+//                 root = delete (root, queryNum);
+
+//                 printf("\n\tPrinting AVL Tree\n");
+//                 printAVL(root, 1);
+//                 printf("\n");
+//             }
+
+//             break;
+//         }
+
+//         case 3:
+//         {
+//             printf("\n\tEnter the Number to Search: ");
+//             scanf("%d", &queryNum);
+
+//             tempNode = findNode(root, queryNum);
+
+//             if (tempNode == NULL)
+//                 printf("\n\t %d : Not Found\n", queryNum);
+//             else
+//             {
+//                 printf("\n\t %d : Found at height %d \n", queryNum,
+//                        tempNode->height);
+
+//                 printf("\n\tPrinting AVL Tree\n");
+//                 printAVL(root, 1);
+//                 printf("\n");
+//             }
+
+//             break;
+//         }
+
+//         case 4:
+//         {
+//             printf("\nPrinting Tree preOrder\n");
+//             printPreOrder(root);
+
+//             break;
+//         }
+
+//         case 5:
+//         {
+//             printf("\nPrinting Tree inOrder\n");
+//             printInOrder(root);
+
+//             break;
+//         }
+
+//         case 6:
+//         {
+//             printf("\nPrinting Tree PostOrder\n");
+//             printPostOrder(root);
+
+//             break;
+//         }
+
+//         case 7:
+//         {
+//             printf("\nPrinting AVL Tree\n");
+//             printAVL(root, 1);
+
+//             break;
+//         }
+
+//         default:
+//         {
+//             flag = 0;
+//             printf("\n\t\tExiting, Thank You !!\n");
+//             break;
+//         }
+//         }
+//     }
+
+//     return 0;
+// }
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE* file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    avlNode* root = NULL;
+    char command[10];
+    int key;
+
+    // Read commands from the file
+    while (fscanf(file, "%s %d", command, &key) != EOF) {
+        if (strcmp(command, "insert") == 0) {
+            root = insert(root, key);
+            printf("Inserted %d\n", key);
+        } else if (strcmp(command, "delete") == 0) {
+            root = delete(root, key);
+            printf("Deleted %d\n", key);
+        } else if (strcmp(command, "search") == 0) {
+            avlNode* foundNode = findNode(root, key);
+            if (foundNode != NULL) {
+                printf("Found: %d\n", foundNode->key);
+            } else {
+                printf("Not Found: %d\n", key);
             }
-
-            break;
-        }
-
-        case 2:
-        {
-            printf("\n\tEnter the Number to Delete: ");
-            scanf("%d", &queryNum);
-
-            tempNode = findNode(root, queryNum);
-
-            if (tempNode == NULL)
-                printf("\n\t %d Does not exist in the tree\n", queryNum);
-            else
-            {
-                printf("\n\tPrinting AVL Tree\n");
-                printAVL(root, 1);
-                printf("\n");
-                root = delete (root, queryNum);
-
-                printf("\n\tPrinting AVL Tree\n");
-                printAVL(root, 1);
-                printf("\n");
-            }
-
-            break;
-        }
-
-        case 3:
-        {
-            printf("\n\tEnter the Number to Search: ");
-            scanf("%d", &queryNum);
-
-            tempNode = findNode(root, queryNum);
-
-            if (tempNode == NULL)
-                printf("\n\t %d : Not Found\n", queryNum);
-            else
-            {
-                printf("\n\t %d : Found at height %d \n", queryNum,
-                       tempNode->height);
-
-                printf("\n\tPrinting AVL Tree\n");
-                printAVL(root, 1);
-                printf("\n");
-            }
-
-            break;
-        }
-
-        case 4:
-        {
-            printf("\nPrinting Tree preOrder\n");
-            printPreOrder(root);
-
-            break;
-        }
-
-        case 5:
-        {
-            printf("\nPrinting Tree inOrder\n");
-            printInOrder(root);
-
-            break;
-        }
-
-        case 6:
-        {
-            printf("\nPrinting Tree PostOrder\n");
-            printPostOrder(root);
-
-            break;
-        }
-
-        case 7:
-        {
-            printf("\nPrinting AVL Tree\n");
-            printAVL(root, 1);
-
-            break;
-        }
-
-        default:
-        {
-            flag = 0;
-            printf("\n\t\tExiting, Thank You !!\n");
-            break;
-        }
+        } else {
+            printf("Unknown command: %s\n", command);
         }
     }
+
+    fclose(file);
+
+    printf("Preorder traversal of the constructed AVL tree is:\n");
+    printPreOrder(root);
+
+    printf("\nInorder traversal of the constructed AVL tree is:\n");
+    printInOrder(root);
+
+    printf("\nPostorder traversal of the constructed AVL tree is:\n");
+    printPostOrder(root);
 
     return 0;
 }

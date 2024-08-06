@@ -1,0 +1,5 @@
+insert key3 300
+insert key4 400
+lookup key3Šlookup key5
+delete key3
+lookup key3

@@ -18,6 +18,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * @brief Doubly linked list struct
@@ -78,13 +79,13 @@ void example();
  * @brief   Main function
  * @returns 0   on exit
  */
-int main()
-{
-    // examples for better understanding
-    example();
-    // code here
-    return 0;
-}
+// int main()
+// {
+//     // examples for better understanding
+//     example();
+//     // code here
+//     return 0;
+// }
 
 /**
  * @brief   Create list function, a new list containing one node will be created
@@ -293,3 +294,47 @@ void print(List *list)
 //     searching = search(my_list, 20);
 //     printf("\n%d\n", searching);
 // }
+void process_commands(FILE *file) {
+    List *list = NULL;
+    char line[256];
+
+    while (fgets(line, sizeof(line), file)) {
+        char command[10];
+        double value;
+        int pos;
+
+        if (sscanf(line, "%s %lf %d", command, &value, &pos) == 3) {
+            if (strcmp(command, "insert") == 0) {
+                list = insert(list, value, pos);
+            } else if (strcmp(command, "delete") == 0) {
+                list = delete(list, pos);
+            }
+        } else if (sscanf(line, "%s %lf", command, &value) == 2) {
+            if (strcmp(command, "search") == 0) {
+                int result = search(list, value);
+                printf("Position of %.2f: %d\n", value, result);
+            }
+        } else if (strcmp(line, "print\n") == 0) {
+            print(list);
+        }
+    }
+}
+
+// Main function for testing
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Failed to open input file");
+        return 1;
+    }
+
+    process_commands(file);
+
+    fclose(file);
+    return 0;
+}

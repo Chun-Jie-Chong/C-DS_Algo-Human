@@ -1,0 +1,5 @@
+insert key3 30!
+insert key4 400
+lookup key3
+insert key3 300
+insert key4 up key3

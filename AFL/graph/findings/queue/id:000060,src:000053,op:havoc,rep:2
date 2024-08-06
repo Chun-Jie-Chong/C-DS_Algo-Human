@@ -1,0 +1,9 @@
+6
+insert 0 1
+remove 1 2
+remove 2 3
+remove 1 2
+insert 3 4
+ins 3
+remove 1 2
+insertert 4 5

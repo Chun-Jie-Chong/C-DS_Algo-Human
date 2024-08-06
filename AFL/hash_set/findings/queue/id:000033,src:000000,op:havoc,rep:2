@@ -1,0 +1,7 @@
+add 5
+add 10öadd 15
+contains 10
+remove 1contains 10
+remove 10
+contains 0
+contains 1

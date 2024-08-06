@@ -52,29 +52,54 @@ void bubbleSort(int *arr, int size)
 /**
  * Test function
  */
-void test()
-{
-    const int size = 10;
-    int *arr = (int *)calloc(size, sizeof(int));
+// void test()
+// {
+//     const int size = 10;
+//     int *arr = (int *)calloc(size, sizeof(int));
 
-    /* generate size random numbers from 0 to 100 */
-    for (int i = 0; i < size; i++)
-    {
-        arr[i] = rand() % 100;
-    }
-    bubbleSort(arr, size);
-    for (int i = 0; i < size - 1; ++i)
-    {
-        assert(arr[i] <= arr[i + 1]);
-    }
-    free(arr);
-}
+//     /* generate size random numbers from 0 to 100 */
+//     for (int i = 0; i < size; i++)
+//     {
+//         arr[i] = rand() % 100;
+//     }
+//     bubbleSort(arr, size);
+//     for (int i = 0; i < size - 1; ++i)
+//     {
+//         assert(arr[i] <= arr[i + 1]);
+//     }
+//     free(arr);
+// }
 
 /** Driver Code */
-int main()
-{
-    /* Intializes random number generator */
-    srand(time(NULL));
-    test();
+// int main()
+// {
+//     /* Intializes random number generator */
+//     srand(time(NULL));
+//     test();
+//     return 0;
+// }
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <file>\n", argv[0]);
+        return 1;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+        perror("Unable to open file");
+        return 1;
+    }
+
+    int arr[1000];
+    int n = 0;
+
+    while (fscanf(file, "%d", &arr[n]) != EOF) {
+        n++;
+    }
+    fclose(file);
+
+    bubbleSort(arr, n);
+
     return 0;
 }

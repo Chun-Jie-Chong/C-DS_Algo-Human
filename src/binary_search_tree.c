@@ -11,6 +11,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /** Node, the basic data structure in the tree */
 typedef struct node
@@ -248,63 +249,103 @@ void inOrder(node *root)
 }
 
 /** Main funcion */
-int main()
-{
-    // this reference don't change.
-    // only the tree changes.
-    node *root = NULL;
-    int opt = -1;
-    int data = 0;
+// int main()
+// {
+//     // this reference don't change.
+//     // only the tree changes.
+//     node *root = NULL;
+//     int opt = -1;
+//     int data = 0;
 
-    // event-loop.
-    while (opt != 0)
-    {
-        printf(
-            "\n\n[1] Insert Node\n[2] Delete Node\n[3] Find a Node\n[4] Get "
-            "current Height\n[5] Print Tree in Crescent Order\n[0] Quit\n");
-        scanf("%d", &opt);  // reads the choice of the user
+//     // event-loop.
+//     while (opt != 0)
+//     {
+//         printf(
+//             "\n\n[1] Insert Node\n[2] Delete Node\n[3] Find a Node\n[4] Get "
+//             "current Height\n[5] Print Tree in Crescent Order\n[0] Quit\n");
+//         scanf("%d", &opt);  // reads the choice of the user
 
-        // processes the choice
-        switch (opt)
-        {
-        case 1:
-            printf("Enter the new node's value:\n");
-            scanf("%d", &data);
+//         // processes the choice
+//         switch (opt)
+//         {
+//         case 1:
+//             printf("Enter the new node's value:\n");
+//             scanf("%d", &data);
+//             root = insert(root, data);
+//             break;
+
+//         case 2:
+//             printf("Enter the value to be removed:\n");
+//             if (root != NULL)
+//             {
+//                 scanf("%d", &data);
+//                 root = delete (root, data);
+//             }
+//             else
+//             {
+//                 printf("Tree is already empty!\n");
+//             }
+//             break;
+
+//         case 3:
+//             printf("Enter the searched value:\n");
+//             scanf("%d", &data);
+//             find(root, data) ? printf("The value is in the tree.\n")
+//                              : printf("The value is not in the tree.\n");
+//             break;
+
+//         case 4:
+//             printf("Current height of the tree is: %d\n", height(root));
+//             break;
+
+//         case 5:
+//             inOrder(root);
+//             break;
+//         }
+//     }
+
+//     // deletes the tree from the heap.
+//     purge(root);
+
+//     return 0;
+// }
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Failed to open input file");
+        return EXIT_FAILURE;
+    }
+
+    node* root = NULL;
+    char command[10];
+    int data;
+    int result;
+
+    while (fscanf(file, "%s %d", command, &data) == 2) {
+        if (strcmp(command, "insert") == 0) {
             root = insert(root, data);
-            break;
-
-        case 2:
-            printf("Enter the value to be removed:\n");
-            if (root != NULL)
-            {
-                scanf("%d", &data);
-                root = delete (root, data);
+            printf("Inserted: %d\n", data);
+        } else if (strcmp(command, "delete") == 0) {
+            root = delete(root, data);
+            printf("Deleted: %d\n", data);
+        } else if (strcmp(command, "find") == 0) {
+            result = find(root, data);
+            if (result == 1) {
+                printf("Found: %d\n", data);
+            } else {
+                printf("Not Found: %d\n", data);
             }
-            else
-            {
-                printf("Tree is already empty!\n");
-            }
-            break;
-
-        case 3:
-            printf("Enter the searched value:\n");
-            scanf("%d", &data);
-            find(root, data) ? printf("The value is in the tree.\n")
-                             : printf("The value is not in the tree.\n");
-            break;
-
-        case 4:
-            printf("Current height of the tree is: %d\n", height(root));
-            break;
-
-        case 5:
-            inOrder(root);
-            break;
         }
     }
 
-    // deletes the tree from the heap.
-    purge(root);
+    fclose(file);
+
+    // Clean up and free allocated memory if needed
 
     return 0;
 }

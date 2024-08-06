@@ -1,0 +1,10 @@
+insert 1 1
+insert 1 2
+insert 1 1
+insert 1 2
+rt 8 3t 8 3rt P 1
+insert 1 1
+insert?1 2
+insert 1 1insert 9 2
+insert 8 31 2
+insert 8 30

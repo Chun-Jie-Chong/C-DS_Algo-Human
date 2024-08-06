@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct node
 {
@@ -797,3 +798,36 @@ void checkBlack(Node *temp, int c)
 // }
 
 // 32 12 50 53 1 2 3 4 5 6 7 8 9
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <input_file>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return EXIT_FAILURE;
+    }
+
+    Node *root = NULL;
+    char operation[10];
+    int value;
+
+    // Read operations from the file and perform them on the tree
+    while (fscanf(file, "%s %d", operation, &value) == 2) {
+        if (strcmp(operation, "insert") == 0) {
+            insertNode(&root, value);
+        } else if (strcmp(operation, "delete") == 0) {
+            deleteNode(&root, value);
+        } else {
+            fprintf(stderr, "Unknown operation: %s\n", operation);
+        }
+    }
+    fclose(file);
+
+    printf("Inorder Traversal: ");
+    printInorder(root);
+
+    return 0;
+}

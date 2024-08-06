@@ -1,0 +1,9 @@
+insert 071
+insert 1 2
+insert 2 3
+insert 1 4
+delete
+insert 1 4
+delete 2
+delete  2
+delete 0

@@ -1,0 +1,11 @@
+insert !N
+insert 20
+insert ;0
+insert 40
+insert 50
+insert G+0
+insert 50
+insert G+
+searchA30
+searchA30
+deleelete 25
