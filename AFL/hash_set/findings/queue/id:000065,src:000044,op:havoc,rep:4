@@ -1,0 +1,10 @@
+add 5
+add 10
+add 15
+ins 0010
+add 15
+contains 00
+ns 0add 15
+contains 00
+r  10m†ve 10
+contains 0

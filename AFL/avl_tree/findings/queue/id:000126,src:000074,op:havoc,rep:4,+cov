@@ -1,0 +1,14 @@
+insert 10
+insert 20
+insert 30
+insert 40
+insert 50
+delete nsu5
+sed
+insert 40
+ 30
+delete 10
+search nse0
+insert 10
+search 50
+delete 25

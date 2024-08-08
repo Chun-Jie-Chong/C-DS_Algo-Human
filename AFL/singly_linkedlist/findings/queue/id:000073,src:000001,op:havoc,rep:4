@@ -1,0 +1,8 @@
+insert 0 10
+insert 18888 20
+insert 2 30
+delete 1
+insert 18888 20
+insert 2 30
+delete 1
+ieldte 1

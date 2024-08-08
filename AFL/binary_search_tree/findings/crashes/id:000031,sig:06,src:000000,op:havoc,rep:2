@@ -1,0 +1,10 @@
+insert 50
+insert 30
+insertfindinsert 20
+insert 40
+insert 60
+insert 40
+insert 60
+insert 80
+fd 30
+find 50

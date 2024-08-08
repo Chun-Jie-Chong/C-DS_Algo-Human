@@ -1,0 +1,5 @@
+insert key3 300
+insert 00000000P000000000000000000000key4 400
+lookup keÿÿÿ€ookup key5
+dk key3
+lookup key3

@@ -1,7 +1,5 @@
-inserkey3t key3 300
-inserkey3t key3 300
-inseert k‚y4 40
-lookup key3
-lookup key5
+insert key3 3key300
+insert	key4 400
+lookup key3Šlookup5key5
 delete key3
 lookup key3

@@ -1,15 +1,0 @@
-insert 10
-insert 0
-insert 30
-insert 30
-insert 40
-insert 50
-int %0
-insert 50
-insert 25
-serch 30
-delete  50
-int 40
-insert 50
-insert 251
-se[delete 25

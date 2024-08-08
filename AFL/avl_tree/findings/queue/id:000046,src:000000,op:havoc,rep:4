@@ -1,6 +1,11 @@
-insert 10
-insert ert 40
-insert 50"ins 10
+insj0
+insert 20
+0
+insert 40
+insertÿ50
+insert 25
+0
+delete 10
 search 10
 search 50
-dlete 25
+delete 25

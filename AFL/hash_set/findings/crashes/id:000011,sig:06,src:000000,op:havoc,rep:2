@@ -1,6 +1,6 @@
 add 5
-acontainsdd 10
+addcontains 10
 add 15
-contains 0
+contains 00
 remove 10
 contains 1

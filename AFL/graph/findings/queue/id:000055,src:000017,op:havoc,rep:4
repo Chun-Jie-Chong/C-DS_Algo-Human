@@ -1,0 +1,10 @@
+56insert 0 10 1
+ert 0 1
+rt 0 t 0 1
+it 1 2
+it 1 21t 1 2 3
+0 1
+it 1 2
+rt 1t 1 2 3
+insert 2 4
+remove 1 2

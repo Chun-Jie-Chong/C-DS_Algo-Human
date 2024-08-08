@@ -1,0 +1,9 @@
+insert 10
+insert 30
+rt 70
+insert 20
+insert 40
+insert 60
+insert 80
+find 30
+delete 305

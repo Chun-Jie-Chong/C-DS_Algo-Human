@@ -1,0 +1,14 @@
+insert 0
+insert 1 20 10
+insert 1 20
+insert 2 30
+d0
+insert 6 30
+rt 1 40
+delete 0e 1
+i 0 10
+insert 1 20
+insert 6 30
+rt 1 40
+delete 0
+d

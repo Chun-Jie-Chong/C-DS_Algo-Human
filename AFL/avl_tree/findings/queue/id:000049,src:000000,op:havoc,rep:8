@@ -1,0 +1,9 @@
+insert 10
+se0
+insert 50
+insert 25
+s30
+delete 10
+e
+search 50
+d	le

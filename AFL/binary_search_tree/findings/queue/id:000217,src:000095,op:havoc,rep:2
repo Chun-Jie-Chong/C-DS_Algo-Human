@@ -1,0 +1,6 @@
+inset 230deletee 30
+find 230
+delete 30
+f 230deletee 3/ñ 30
+find 230
+deleinP 50

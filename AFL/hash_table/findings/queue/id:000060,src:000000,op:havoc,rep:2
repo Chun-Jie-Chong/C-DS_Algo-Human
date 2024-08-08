@@ -1,10 +1,10 @@
-insert name JÿÿDoe
+insert name John Doe
 insert occupation Sare r
 insert language C
 search name
 search occupation
-search lame
-search occupation
 search language
-delete name
+delete nguage C
+search name
+search occ
 search nam

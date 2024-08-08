@@ -1,8 +1,0 @@
-idsert 0 10
-insert 1 20
-insert 2 30
-delete 40
-delete 0 1
-insert 1 40
-delete 0
-delete 1

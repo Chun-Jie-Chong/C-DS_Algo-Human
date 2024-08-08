@@ -1,8 +1,0 @@
-insert kek3 300
-insert key4 key4 400
-lookup key3
-lookup k 400
-lookup key3
-lookup key5
-delete key3
-lookup key3

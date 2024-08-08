@@ -1,0 +1,14 @@
+insert ±0
+insert 40
+insert 50
+ir0
+del40
+insert 50üir0
+delete nsu5
+search 30
+delete 10
+delete nsu5
+s0
+search 10
+search 50
+delete 25

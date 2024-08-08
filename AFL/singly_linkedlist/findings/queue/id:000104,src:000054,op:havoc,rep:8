@@ -1,0 +1,18 @@
+iinset0 1det dele1 3
+insert 1 A
+2
+i 1
+insert 5 4
+2
+insert 4
+2
+i 1
+insert 5 4
+2
+indel 2 3
+insert!1 4ert 1 4
+2
+i 1
+insert 5 4
+2
+in

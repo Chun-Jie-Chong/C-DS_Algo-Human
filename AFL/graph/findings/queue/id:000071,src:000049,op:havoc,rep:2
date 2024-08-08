@@ -1,0 +1,8 @@
+5
+insert 1 2ÿ
+remove 1 2at 0 1 0 2
+insert 1 2ÿ
+remove 1 2
+it 0 2
+insert 1 2ÿ
+remove 1 2

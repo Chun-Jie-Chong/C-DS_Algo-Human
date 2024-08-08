@@ -1,0 +1,6 @@
+insert 0 1
+insert 1 2 4
+deleteC2
+delete 1 4
+deleteõõõõõõõ 2
+d\lete 0

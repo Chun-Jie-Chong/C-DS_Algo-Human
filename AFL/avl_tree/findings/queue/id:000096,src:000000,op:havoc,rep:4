@@ -1,0 +1,14 @@
+insert 10
+insert 20
+insert 30
+insert 40
+insert 50
+in 25
+search 30
+delete 10
+search 100
+insert 30
+insert 40
+it
+search 50
+delete r

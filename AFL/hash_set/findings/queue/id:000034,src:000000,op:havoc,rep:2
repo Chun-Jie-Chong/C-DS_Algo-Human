@@ -1,7 +1,8 @@
-add 5add 10
-add 1
+add 5
+add 10d 10
+[dd 15
 contains 10
-remove 5
+rdd 15
 contains 10
 remove 10
 contains 1

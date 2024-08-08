@@ -1,0 +1,10 @@
+insert 5nnnnnnnnnnnnert 30
+insert 70
+insert 20
+insert 40
+insert 60
+insert 80
+find 0
+delete ³0
+find 30
+find 50

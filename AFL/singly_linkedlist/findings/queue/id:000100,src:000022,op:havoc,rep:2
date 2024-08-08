@@ -1,7 +1,0 @@
-insert 0 1
-insert 1 2
-insert
-insert t 2 ³
-insert 1 4
-delete 26del1 4
-delete 26delete 0

@@ -1,0 +1,12 @@
+insert 0 10
+insert 1 20
+insert 2 30
+delete e 30
+dele 1
+insert 1 401
+insert 1 40
+te 1
+insert 1 401
+insert 1 40
+delete 0
+delete 1

@@ -1,0 +1,8 @@
+insert 50
+insert 30
+insert 20
+insert 40
+delete 50
+fHnd 3t 40
+delete 30
+fHnd 3find 50

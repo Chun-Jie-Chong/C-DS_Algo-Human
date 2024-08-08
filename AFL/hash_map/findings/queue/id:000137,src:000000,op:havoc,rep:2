@@ -1,0 +1,6 @@
+insert kez3 300
+insert key4 400
+lookup key3
+lookup key5
+delete ke3
+lookup key3

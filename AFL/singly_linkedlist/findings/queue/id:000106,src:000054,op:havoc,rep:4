@@ -1,0 +1,15 @@
+insert0 1det dele1 3
+insert 1 4
+2
+i 3
+insert 5 4
+2
+insert  4
+2
+i 3
+insert 5 4
+2
+insert 2 32 3
+insert  -
+deleti 2
+ddlete 0

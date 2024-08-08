@@ -1,12 +1,10 @@
-insert 50
-inseXt 30
-insert 70
+insert 5
 insert 20
 insert 40
 insert 60
-inseete 30
+insert 80
 find 30
-find 5080
-find 3030
-find 30
-find 50
+delete 30
+
+finz 0
+find 5

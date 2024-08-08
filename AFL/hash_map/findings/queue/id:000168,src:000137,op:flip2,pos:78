@@ -1,6 +1,0 @@
-insert key 300
-insert key4 400
-lookup key5
-lookup key5
-delete key3
-lookup key5

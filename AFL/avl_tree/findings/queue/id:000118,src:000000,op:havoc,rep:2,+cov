@@ -4,8 +4,7 @@ insert 30
 insert 40
 insert 50
 insert 25
-50
-insert 2
-search 10
-search 50
+a 20t 30
+insert 40
+insert 5h 50
 delete 25
