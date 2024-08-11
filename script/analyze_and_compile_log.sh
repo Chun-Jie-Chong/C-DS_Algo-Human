@@ -6,11 +6,11 @@ CFLAGS="-Wall -O0"
 ANALYZE_FLAGS="--analyze"
 LOGFILE="compile_and_analyze_log.txt"
 
-# Create or clear the log file
-> "$LOGFILE"
-
 # Iterate over all .c files in the current directory
 cd ../src
+
+# Create or clear the log file
+> "$LOGFILE"
 
 for cfile in *.c; do
     if [[ -f "$cfile" ]]; then
